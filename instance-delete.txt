@@ -1,0 +1,25 @@
+
+# Delete OpenStack Nova Instance manually
+#
+# Only consider doing this when normal commands have failed
+
+# Make sure any cinder volumes have been detached first
+# Cleanup related fixed and floating IPs
+# Check block_device_mappings
+
+Instance Deletion:
+- Connect to the nova database and update the instance information:
+   # ID=$(mysql -e "select id from nova.instances where uuid='<instance-uuid>';" | egrep '[0-9]{1,5}')
+   # mysql -e "update nova.instances set updated_at=now(),deleted_at=now(),terminated_at=now(),vm_state='deleted',task_state=NULL,deleted=$ID where uuid='<instance uuid>';"
+   # you may also need to update the nova.fixed_ips table and the nova.floating_ips table
+- ssh to the hosting hypervisor
+- destroy the instance
+- get the instance id from libvirt.xml
+   # grep "<name>instance" /var/lib/nova/instances/e621cbc8-0ab2-4d72-8c48-2b48fb7f9908/libvirt.xml
+   # /var/lib/nova/instances/<Nova instance UUID>
+- destroy and undefine the instance
+   # virsh destroy instance-XXXXXXXX
+   # virsh undefine instance-XXXXXXXX
+- delete the instance directory
+   # rm -rf /var/lib/nova/instances/<instance uuid>
+

@@ -1,0 +1,28 @@
+
+# Deleting an OpenStack Cinder Volume manually
+#
+# Only consider doing this when normal commands have failed
+
+Volume Deletion:
+- Connect to the nova and cinder databases and update the device mappings there
+   # VOL_ID=$(mysql -e "select id from nova.block_device_mapping where volume_id='<volume id>';"| egrep '[0-9]{1,5})
+   # mysql -e "update nova.block_device_mapping set updated_at=now(),deleted_at=now(),deleted=$VOL_ID where volume_id='<volume id>';"
+   # mysql -e "update cinder.volumes set updated_at=now(),deleted_at=now(),terminated_at=now(),mountpoint=NULL,instance_uuid=NULL,status='deleted',deleted=1 where id='<volume id>';"
+-ssh to the volume hosting node
+-identify the target lun
+   # tgt-admin -s | grep <volume-id>
+-mark the target offline
+   # tgt-admin --offline tid=<target id>
+-get a list of all active connections to this lun (If there are none, skip the next step)
+   # tgtadm --lld iscsi --op show --mode conn --tid <target id>
+-close all of the active sessions (call this for each active session)
+   # tgtadm --lld iscsi --op delete --mode conn --tid <target id> --sid <session id>
+-delete the lun
+   # tgtadm --lld iscsi --op delete --mode target --tid <target id>
+-delete the target file in /var/lib/cinder/volumes
+   # rm /var/lib/cinder/volumes/volume-<volume uuid>
+-delete the logical volume
+   # lvremove -f /path/to/volume
+- Please note the above will leave a stale connection reference in the local iscsi connection table.  The connection itself is gone, however.  This doesn't cause any problems and can be corrected by running the following:
+   # iscsiadm -m node -T <target name> -p <cinder host>:<port> -u
+

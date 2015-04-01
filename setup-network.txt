@@ -1,0 +1,31 @@
+
+https://wiki.openstack.org/wiki/VlanNetworkSetup
+
+# Networks contain 1 row per Fixed IP VLAN
+#	cidr, netmask, bridge, gateway, broadcast, dns, vlan, vpm_public_address, vpn_private_addres, dhcp_start, project id, label, 
+# Display Fixed IP VLANs
+select id,cidr from networks;
+
+
+#!/bin/sh
+
+if [ -z $1 ]; then
+  echo "You need to specify the vlan to modify"
+fi
+
+if [ -z $2 ]; then
+  echo "You need to specify a network id number (check the DB for the network you want to update)"
+fi
+
+VLAN=$1
+ID=$2
+
+cat > vlan.sql << __EOF_
+update networks set vlan = '$VLAN' where id = $ID;
+update networks set bridge = 'br_$VLAN' where id = $ID;
+update networks set gateway = '10.1.$VLAN.7' where id = $ID;
+update networks set dhcp_start = '10.1.$VLAN.8' where id = $ID;
+update fixed_ips set reserved = 1 where address in ('10.1.$VLAN.1','10.1.$VLAN.2','10.1.$VLAN.3','10.1.$VLAN.4','10.1.$VLAN.5','10.1.$VLAN.6','10.1.$VLAN.7');
+__EOF_
+
+

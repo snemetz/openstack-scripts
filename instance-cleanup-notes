@@ -1,0 +1,75 @@
+
+Manually deleting an instance or cleaning up 
+
+Remote On Hypervisor:
+### Collect Information
+# Get curent IP addresses - Compare with NAT and OpenStack floating IPs
+#	Only eth2.519@eth2
+ip a
+ip addr show scope global eth2.519 | grep inet | awk '{ print $2 }' | grep '/32' | cut -d/ -f1 | sort
+# Get NAT tables - Compare with OpenStack floating ips
+#	Only need below. Validate that they all agree (connect)
+#		nova-network-
+#			float-snat
+#			PREROUTING
+#			POSTROUTING
+#			OUTPUT
+#			snat  - different thing
+iptables -L -nv -t nat
+Python: import os; var = os.system(' ') - Outputs to terminal, cannot capture - Look at subprocess module
+iptables -n -t nat -L nova-network-float-snat | egrep -v 'Chain|target' | awk '{ print $6 }' | grep -v '^$' | cut -d: -f2 | sort -u
+# snat only has 1 entry
+iptables -n -t nat -L nova-network-snat | egrep -v 'Chain|target' | awk '{ print $6 }' | grep -v '^$' | cut -d: -f2 | sort -u
+iptables -n -t nat -L nova-network-OUTPUT | egrep -v 'Chain|target' | awk '{ print $5 }' | grep -v '^$' | sort -u
+iptables -n -t nat -L nova-network-PREROUTING | egrep -v 'Chain|target' | awk '{ print $5 }' | egrep -v '^169\.|^$' | sort -u
+iptables -n -t nat -L nova-network-POSTROUTING | egrep -v 'Chain|target' | grep ^SNAT | awk '{ print $8 }' | grep -v '^$' | cut -d: -f2 | sort -u
+# Write all output to files then
+diff --from-file float-snat prerouting postrouting output
+
+# Get current instances - Compare with OpenStack info
+virsh list --all --name
+# Get nwfilters - Compare with current instances
+#	Get instance (domain) names
+virsh nwfilter-list | grep nova-instance- | awk '{ print $2 }' | cut -d- -f3-4
+ls -1 /etc/libvirt/nwfilter/nova-instance-* | cut -d- -f3-4
+
+### Remote script
+output="openstack.data"
+echo "=== ip addr" > $output
+ip addr show scope global eth2.519 | grep inet | awk '{ print $2 }' | grep '/32' | cut -d/ -f1 | sort >> $output
+echo "=== iptables float-snat" >> $output
+iptables -n -t nat -L nova-network-float-snat | egrep -v 'Chain|target' | awk '{ print $6 }' | grep -v '^$' | cut -d: -f2 | sort -u >> $output
+echo "=== iptables OUTPUT" >> $output
+iptables -n -t nat -L nova-network-OUTPUT | egrep -v 'Chain|target' | awk '{ print $5 }' | grep -v '^$' | sort -u >> $output
+echo "=== iptables PREROUTING" >> $output
+iptables -n -t nat -L nova-network-PREROUTING | egrep -v 'Chain|target' | awk '{ print $5 }' | egrep -v '^169\.|^$' | sort -u >> $output
+echo "=== iptables POSTROUTING" >> $output
+iptables -n -t nat -L nova-network-POSTROUTING | egrep -v 'Chain|target' | grep ^SNAT | awk '{ print $8 }' | grep -v '^$' | cut -d: -f2 | sort -u >> $output
+echo "=== virsh list" >> $output
+virsh list --all --name >> $output
+echo "=== virsh nwfilter" >> $output
+virsh nwfilter-list | grep nova-instance- | awk '{ print $2 }' | cut -d- -f3-4 >> $output
+#ls -1 /etc/libvirt/nwfilter/nova-instance-* | cut -d- -f3-4
+
+# Process: loop on hypervisor list
+# Get remote data
+### Return 7 data lists for processing
+scp <script> <host>:
+ssh <host> <script> > <host>.data
+# parse data
+# Get OpenStack data
+# Compare data
+
+Local From OpenStack:
+# Get list of all instances on host
+	# ADD: fixed, floating - find field names
+nova list --all-tenants 1 --fields name,host,instance_name,status,OS-EXT-STS:vm_state,task_state,power_state,created
+# Get list of all fixed IPs on host
+MySQL: select address from nova.fixed_ips where host = '';
+ | egrep -v 'address|rows|+' | awk '{ print $2 }'
+# Get list of all floating IPs on host
+#	Displays project id, floating ip, instance uuid, pool, interface
+nova floating-ip-bulk-list --host <host> | egrep -v 'address|+' | awk '{ print $4 }'
+MySQL: select address from nova.floating_ips where host = '';
+ | egrep -v 'address|rows|+' | awk '{ print $2 }'
+
