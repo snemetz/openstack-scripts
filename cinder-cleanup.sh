@@ -14,6 +14,11 @@ Volume_Issues_File='issues-volume'
 
 cinder_cleanup () {
   ### Cleanup cinder volumes via nova (or cinder)
+  # cinder list --all-tenants 1 --status=creating | grep -v 'ID|[+]' | awk '{ print $2 }'
+  # cinder list --all-tenants 1 --status=detaching | grep -v 'ID|[+]' | awk '{ print $2 }'
+  # cinder list --all-tenants 1 --status=error_deleting | grep -v 'ID|[+]' | awk '{ print $2 }'
+  # cinder list --all-tenants 1 --status=available | grep -v 'ID|[+]' | awk '{ print $2 }' | xargs cinder delete
+  # cinder delete|force-delete
   #nova volume-list --all-tenants 1 | egrep 'creating|deleting|detaching|available|error' | awk '{ print $2 }' | tee $Volume_Issues_File | xargs -n1 cinder reset-state --state available
   #nova volume-list --all-tenants 1 | egrep -v in-use | awk '{ print $2 }' | tee $Volume_Issues_File | xargs -n1 cinder reset-state --state available
   nova volume-list --all-tenants 1 | grep -i delet | awk '{ print $2 }' | tee $Volume_Issues_File | xargs -n1 cinder reset-state --state error

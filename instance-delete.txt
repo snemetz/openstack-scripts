@@ -2,10 +2,21 @@
 # Delete OpenStack Nova Instance manually
 #
 # Only consider doing this when normal commands have failed
+#
+# https://raymii.org/s/articles/Fix_inconsistent_Openstack_volumes_and_instances_from_Cinder_and_Nova_via_the_database.html
+#
 
 # Make sure any cinder volumes have been detached first
 # Cleanup related fixed and floating IPs
 # Check block_device_mappings
+
+# Detach cinder volumes
+nova volume-detach $vm_uuid $volume_uuid
+# if fails and it is detached in cinder. Verify actual storage!!!
+mysql nova
+# Set deleted flags instead: deleted_at, deleted,
+#delete from block_device_mapping where not deleted and volume_id='$volume_uuid' and project_id='$project_uuid';
+update block_device_mapping set deleted_at=now(),updated_at=now(),deleted= where not deleted and instance_uuid='$instance_uuid';
 
 Instance Deletion:
 - Connect to the nova database and update the instance information:

@@ -2,6 +2,9 @@
 # Deleting an OpenStack Cinder Volume manually
 #
 # Only consider doing this when normal commands have failed
+#
+# https://ask.openstack.org/en/question/1378/cannot-remove-volume/
+# https://raymii.org/s/articles/Fix_inconsistent_Openstack_volumes_and_instances_from_Cinder_and_Nova_via_the_database.html
 
 Volume Deletion:
 - Connect to the nova and cinder databases and update the device mappings there

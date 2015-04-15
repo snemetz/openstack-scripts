@@ -9,7 +9,9 @@
 #	  On Hypervisor: instances, nwfilter, nat, ip
 #	Cleanup all other references in DB: floating_ip, detach volumes, ...
 
-Nova_Issues_File='issues-nova-instances'
+tmpdir='/tmp'
+Nova_Issues_File="${tmpdir}/issues-nova-instances"
+log_error="instance-cleanup-errors"
 error_pattern='ERROR|BUILD|building|DELETED|deleting|NOSTATE'
 MYSQL_HOST='172.22.192.2'
 MYSQL_USER='nova'
@@ -69,7 +71,39 @@ nova_cleanup () {
   #nova list --all-tenants 1 | egrep 'ERROR|BUILD|building|DELETED|deleting|NOSTATE' | awk '{ print $2 }' | tee $Nova_Issues_File | xargs -n1 nova reset-state --active
   nova list --all-tenants 1 | egrep -i 'delet|error' | awk '{ print $2 }' | tee $Nova_Issues_File | xargs -n1 nova reset-state --active
   #nova list --all-tenants 1 | awk '{ print $2 }' | tee $Nova_Issues_File | xargs -n1 nova reset-state --active
-  for I in `cat $Nova_Issues_File`; do nova delete $I; done
+  for I in `cat $Nova_Issues_File`; do
+    echo "Attempting to fix: $I"
+    details=$(nova show $I 2>/dev/null)
+    if [ $? -eq 0 ]; then
+    #  # will fail if task_state=deleting
+    #  ACTIVE,deleting,NOSTATE - Still trying
+    #  ERROR,-,NOSTATE - reset,force
+    #  'fault' may contain a stack trace
+    #  Get attached volumes and detach
+      #IName=$(echo "$details" | grep '| name ' | awk '{ print $4 }')
+      # Change to get data from $details
+      #volumes=$(nova list --name $IName --fields os-extended-volumes:volumes_attached | egrep -v '[+]|ID' | awk -F\| '{ print $3 }' | sed "s/u\'/\'/g" | sed s/\'/\"/g | jq '.[].id?' | sed s/\"//g)
+      volumes=$(echo "$details" | grep 'os-extended-volumes:volumes_attached' | awk -F\| '{ print $3 }' | jq '.[].id' | sed s/\"//g)
+      for V in $volumes; do
+        # Check cinder that volume is in-use
+        if [ "$(nova volume-show $V 2>/dev/null | grep '| status ' | awk '{ print $4 }')" == 'in-use' ]; then
+          echo -e "\tDetaching: $V"
+          nova volume-detach $I $V 2>> $log_error
+          error=$?
+          if [ $error -ne 0 ]; then
+            echo "ERROR: $error: Instance: $I Volume: $V while attempting detach" >> $log_error
+          fi
+        fi
+      done
+      sleep 2
+      #nova force-delete $I
+      nova delete $I 2>> $log_error
+      error=$?
+      if [ $error -ne 0 ]; then
+        echo "ERROR: $error: Instance: $I while attempting delete" >> $log_error
+      fi
+    fi
+  done
 }
 
 db_cleanup () {
@@ -104,6 +138,7 @@ db_cleanup () {
   done
 }
 
+cp /dev/null $log_error
 if [ 1 -eq 1 ]; then 
   echo "Starting instance error cleanup via CLI..."
   nova_cleanup

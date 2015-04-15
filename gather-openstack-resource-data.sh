@@ -2,7 +2,8 @@
 #
 # Collect resource data from OpenStack Hypervisor nodes and OpenStack Database
 #
-dir_data='/tmp/openstack-data'
+dir_tmp='/tmp'
+dir_data="${dir_tmp}/openstack-data"
 
 mkdir -p $dir_data
 
@@ -64,8 +65,8 @@ for H in $hypervisors; do
   diff --from-file=${dir_data}/${H}-ip_addr ${dir_data}/${H}-iptables_OUTPUT ${dir_data}/${H}-iptables_POSTROUTING ${dir_data}/${H}-iptables_PREROUTING ${dir_data}/${H}-iptables_float-snat ${dir_data}/openstack-floating-ips-${H} | egrep '<|>' | sed 's/[<>]/-/' |sort -u
   # Compare instances
   echo "$H compare instances..."
-  tmpnwfile="/tmp/${H}-nw-$$"
-  tmpinstfile="/tmp/${H}-inst-$$"
+  tmpnwfile="${dir_tmp}/${H}-nw-$$"
+  tmpinstfile="${dir_tmp}/${H}-inst-$$"
   cat ${dir_data}/${H}-virsh_nwfilter | cut -d- -f1-2 > $tmpnwfile
   grep $H ${dir_data}/openstack-instances | awk '{ print $8 }' | sort > $tmpinstfile
   diff --from-file=${dir_data}/${H}-virsh_list $tmpnwfile $tmpinstfile | egrep '<|>' | sed 's/[<>]/-/' | sort -u
