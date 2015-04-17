@@ -3,6 +3,9 @@
 # Cleanup Openstack hypervisor host to make consistant
 #	Cleanup KVM nwfilers that VMs don't exist
 #	Cleanup Floating IPs that have no NATs
+#	Cleanup instances kvm & nova instances should match - remove what doesn't
+# TODO:
+#	Cleanup cinder/iscsi inconsistances
 
 DEBUG=1
 ACTION=0
@@ -11,7 +14,7 @@ echo "Processing $HOSTNAME..."
 
 Instances=`virsh list --all --name | sed '/^$/ d'`
 
-### Check if Nova and KVM agree on hte number of instances
+### Check if Nova and KVM agree on the number of instances
 if [ $DEBUG == 1 ]; then
   echo "Checking number of KVM VMs and Nova Instances match..."
 fi

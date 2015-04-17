@@ -11,14 +11,12 @@ dir_tmp='/tmp'
 down_cinder="${dir_tmp}/down-service-cinder"
 down_nova="${dir_tmp}/down-service-nova"
 
-cinder_services_down=$(cinder service-list | grep down | grep enabled | tee $down_cinder | wc -l)
+cinder_services_down=$(cinder service-list | grep down | grep enabled | tee $down_cinder | wc -l )
 nova_services_down=$(nova service-list | grep down | grep enabled | tee $down_nova | wc -l)
 echo "Cinder services down: $cinder_services_down"
-#cat $down_cinder
 echo "Nova services down: $nova_services_down"
-#cat $down_nova
 
-if [ "$cinder_services_down" != "0" -o "$nova_services_down" != "0" ]; then
+if [ $cinder_services_down -ne 0 -o $nova_services_down -ne 0 ]; then
   #mail -s "OpenStack Report: Eng Services Down" $email <<MSG
   cat << MSG
 OpenStack Cinder & Nova Services Report
