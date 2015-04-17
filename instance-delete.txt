@@ -5,6 +5,9 @@
 #
 # https://raymii.org/s/articles/Fix_inconsistent_Openstack_volumes_and_instances_from_Cinder_and_Nova_via_the_database.html
 #
+# NOTE:
+#	Nothing in here should be done unless normal API calls have failed !!
+#
 
 # Make sure any cinder volumes have been detached first
 # Cleanup related fixed and floating IPs
@@ -13,6 +16,7 @@
 # Detach cinder volumes
 nova volume-detach $vm_uuid $volume_uuid
 # if fails and it is detached in cinder. Verify actual storage!!!
+mysql -e "update cinder.volumes set attach_status='detached',status='available' where id ='$volume_uuid';"
 mysql nova
 # Set deleted flags instead: deleted_at, deleted,
 #delete from block_device_mapping where not deleted and volume_id='$volume_uuid' and project_id='$project_uuid';
@@ -21,7 +25,7 @@ update block_device_mapping set deleted_at=now(),updated_at=now(),deleted= where
 Instance Deletion:
 - Connect to the nova database and update the instance information:
    # ID=$(mysql -e "select id from nova.instances where uuid='<instance-uuid>';" | egrep '[0-9]{1,5}')
-   # mysql -e "update nova.instances set updated_at=now(),deleted_at=now(),terminated_at=now(),vm_state='deleted',task_state=NULL,deleted=$ID where uuid='<instance uuid>';"
+   # mysql -e "update nova.instances set updated_at=now(),deleted_at=now(),terminated_at=now(),vm_state='deleted',task_state=NULL,deleted='1' where uuid='<instance uuid>';"
    # you may also need to update the nova.fixed_ips table and the nova.floating_ips table
 - ssh to the hosting hypervisor
 - destroy the instance

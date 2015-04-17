@@ -14,6 +14,13 @@ Volume_Issues_File='issues-volume'
 
 cinder_cleanup () {
   ### Cleanup cinder volumes via nova (or cinder)
+  # Status values:
+  #    creating, available, attaching, in-use, deleting, error, error_deleting, backing-up, restoring-backup, error_restoring, error_extending
+  #for Status in creating detaching error_deleting available; do
+  #  for Volume in $(cinder list --all-tenants 1 --status=$Status | grep -v 'ID|[+]' | awk '{ print $2 }'); do
+  #    case
+  #  done
+  #done
   # cinder list --all-tenants 1 --status=creating | grep -v 'ID|[+]' | awk '{ print $2 }'
   # cinder list --all-tenants 1 --status=detaching | grep -v 'ID|[+]' | awk '{ print $2 }'
   # cinder list --all-tenants 1 --status=error_deleting | grep -v 'ID|[+]' | awk '{ print $2 }'

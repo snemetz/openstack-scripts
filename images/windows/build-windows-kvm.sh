@@ -9,7 +9,11 @@
 # https://github.com/larsks/windows-openstack-image
 
 # Download virtio window driver
-# alt.fedoraproject.org/pub/alt/virtio-win/
+# RedHat version: alt.fedoraproject.org/pub/alt/virtio-win/
+# Ubuntu version: https://launchpad.net/kvm-guest-drivers-windows/+download
+# Source: https://github.com/YanVugenfirer/kvm-guest-drivers-windows
+
+# Need VNC client that can send CtrlAltDel
 
 # Fully virtualized
 virt-install \
@@ -30,24 +34,35 @@ virt-install --connect qemu:///system --arch=x86_64 -n <VM NAME> -r 4096 --cpu h
 --graphics vnc,password=<PASSWORD> --noautoconsole
 
 # Hortonworks Windows Server 2008 R2 on corp5
+qemu-img create -f qcow2 /home/qemu/boron2.img -o preallocation=metadata 100G
+chown qemu:qemu /home/qemu/boron2.img
+virt-install --connect qemu:///system --arch=x86_64 --name boron2 --ram 8192 --cpu host --vcpus=1 --hvm \
+--description "Boomi Atom" \
+--disk path=/home/qemu/boron2.img,format=qcow2 \
+--cdrom=/media/SW_DVD5_Windows_Svr_DC_EE_SE_Web_2008R2_64-bit_English_X15-59754.ISO \
+--os-type windows --os-variant win2k8 --accelerate \
+--network bridge=br0 \
+--graphics vnc,listen=0.0.0.0,password=PASSWORD --noautoconsole
+
+# Hortonworks Windows Server 2008 R2 with virtio drivers on corp5
 qemu-img create -f qcow2 /home/qemu/boron.img -o preallocation=metadata 100G
 chown qemu:qemu /home/qemu/boron.img
 virt-install --connect qemu:///system --arch=x86_64 --name boron --ram 8192 --cpu host --vcpus=1 --hvm \
 --description "Boomi Atom" \
 --disk path=/home/qemu/boron.img,device=disk,format=qcow2,bus=virtio,cache=none \
---cdrom=/tmp/SW_DVD5_Windows_Svr_DC_EE_SE_Web_2008R2_64-bit_English_X15-59754.ISO \
---disk path=/tmp/virtio-win-0.1-100.iso,device=cdrom,perms=ro \
---os-type windows --os-variant win2k8 \
+--cdrom=/media/SW_DVD5_Windows_Svr_DC_EE_SE_Web_2008R2_64-bit_English_X15-59754.ISO \
+--disk path=/media/virtio-win-0.1-100.iso,device=cdrom,perms=ro \
+--os-type windows --os-variant win2k8 --accelerate \
 --network bridge=br0,model=virtio \
 --graphics vnc,listen=0.0.0.0,password=PASSWORD --noautoconsole
+# NOTES:
+# --network bridge=br0,model=virtio		# No IP gets assigned, win driver may not be working - Static config needed. Other VMs are bridged
+# --network network=default,model=virtio	# Use NAT, outgoing works & incoming, but on wrong network to be reached from office
+
 # Connect to console
 # Install virtio drivers from win8 (may not have all or any drivers) or win7
 # For 2008 R2 use wlh
 # For 2012 R2 use win8
-
-
-# Para-virtualized
-# Look at RedHat doc
 
 # Upload to OpenStack
 glance image-create --name 'Windows Server 2012 R2 Standard Eval' --min-disk 40 --min-ram 1000 --is-public True --disk-format qcow2 --container-format bare --owner b9b002a5232c4f5c8d68af96c68338ca --file

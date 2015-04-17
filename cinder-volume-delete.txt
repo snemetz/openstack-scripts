@@ -10,7 +10,7 @@ Volume Deletion:
 - Connect to the nova and cinder databases and update the device mappings there
    # VOL_ID=$(mysql -e "select id from nova.block_device_mapping where volume_id='<volume id>';"| egrep '[0-9]{1,5})
    # mysql -e "update nova.block_device_mapping set updated_at=now(),deleted_at=now(),deleted=$VOL_ID where volume_id='<volume id>';"
-   # mysql -e "update cinder.volumes set updated_at=now(),deleted_at=now(),terminated_at=now(),mountpoint=NULL,instance_uuid=NULL,status='deleted',deleted=1 where id='<volume id>';"
+   # mysql -e "update cinder.volumes set updated_at=now(),deleted_at=now(),terminated_at=now(),mountpoint=NULL,instance_uuid=NULL,status='deleted',deleted=1 where deleted=0 and id='$volume_uuid';"
 -ssh to the volume hosting node
 -identify the target lun
    # tgt-admin -s | grep <volume-id>
