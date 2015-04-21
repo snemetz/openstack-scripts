@@ -24,6 +24,10 @@ error_pattern='ERROR|BUILD|building|DELETED|deleting|NOSTATE'
 MYSQL_HOST='172.22.192.2'
 MYSQL_USER='nova'
 MYSQL_PASSWORD='xSuJDU6b'
+MYSQL_CINDER_USER='cinder'
+MYSQL_CINDER_PASSWORD='ERIVQgf6'
+MYSQL_NOVA_USER='nova'
+MYSQL_NOVA_PASSWORD='xSuJDU6b'
 backend_storage='iscsi'
 backend_hypervisor='libvirt'
 script_volume_delete="${tmpdir}/local-volume-delete.sh"
@@ -40,6 +44,34 @@ EOF`
   else
     return 0
   fi
+}
+
+mysql_query () {
+  local MySQL_Host=$1
+  local MySQL_User=$2
+  local MySQL_Password=$3
+  local SQL=$4
+  local SQL_Results
+
+  echo -e "\tApplying SQL for $MySQL_User..."
+    # Add --verbose --verbose then test output for 'Rows matched: # Changed: # Warnings: #'
+    # Should return: Matched 1|0 Changed 1|0(if matched was 0) Warnings 0
+    # Expect 1 1 0
+  SQL_Results=$(mysql -h $MySQL_Host -u $MySQL_User -p$MySQL_Password --verbose --verbose --batch --skip-column-names -e "$SQL" 2>/dev/null)
+  Result_Stats=($(echo "$SQL_Results" | grep 'Rows matched:' | awk -F: '{ print $2$3$4 }' | awk '{ print $1" "$3" "$5 }'))
+  # if [ "${Result_Stats[@]:0:2}" == "1 1" ]; then # All Good - DOESN'T WORK, complains about too many arguments
+  if [ ${Result_Stats[0]} -eq 1 -a ${Result_Stats[1]} -eq 0 ]; then
+    echo -e "\tWARNING: DB query matched but didn't change anything"
+    return 1
+  elif [ ${Result_Stats[0]} -eq 0 ]; then
+    echo -e "\tWARNING: DB query didn't match anything"
+    return 2
+  fi
+  if [ ${Result_Stats[2]} -ne 0 ]; then
+    echo -e "\tWARNING MySQL: $SQL_Results"
+    return 3
+  fi
+  return 0
 }
 
 fixed_ip_disassociate () {
@@ -98,6 +130,7 @@ volume_delete () {
     status=$(nova volume-show $Volume_UUID | grep ' status ' | awk '{ print $4 }')
     if [ -n "$status" ]; then
       echo -e "\tVolume delete accepted but not sucessful. Status: $status"
+      #error=1
     fi
   fi
   if [ $error -ne 0 ]; then
@@ -117,6 +150,7 @@ volume_delete () {
     case $backend_storage in
       iscsi)
         ### Cleanup storage node - iscsi
+        echo -e "\tISCSI Clenaup..."
         host=$(cinder show $Volume_UUID | grep os-vol-host-attr:host | awk '{ print $4 }' | cut -d\# -f1)
         #   ssh to the volume hosting storage
         #TEST is in error_deleting:  node-230 - 9d4253af-e0ef-4c31-a955-72283f9aa20b
@@ -167,21 +201,43 @@ EOF
 volume_detach () {
   local Instance_UUID=$1
   local Volume_UUID=$2
+  
+  # This might not be complete
+  # For these conditions - good enough that can delete instance afterwards
+  # | ERROR   | -          | Running     |
+  # | ERROR   | -          | NOSTATE     |
+  # For these conditions - instance delete still fails on detach afterwards
+  # | ACTIVE  | -          | deleting    |
 
   echo -e "\n\tDetaching: $Volume_UUID"
-  Q=$(cat <<EOF
-update nova.block_device_mapping set deleted_at=now(),updated_at=now(),deleted=id where not deleted and volume_id='$Volume_UUID';
+  SQL_Cinder=$(cat <<SQL_SCRIPT
 update cinder.volumes set updated_at=now(),attach_status='detached',attached_host=NULL,status='available' where id ='$Volume_UUID' and not attach_status='detached';
-EOF)
+SQL_SCRIPT
+)
+  SQL_Nova=$(cat <<SQL_SCRIPT
+update nova.block_device_mapping set deleted_at=now(),updated_at=now(),deleted=id where not deleted and volume_id='$Volume_UUID';
+SQL_SCRIPT
+)
+  # Other nova tables: volumes (empty), 
   # Query afterwards to verify success?
       #if [ "$(nova volume-show $V 2>/dev/null | grep '| status ' | awk '{ print $4 }')" != 'in-use' ]; then
   nova volume-detach $Instance_UUID $Volume_UUID
   error=$?
   if [ $error -ne 0 ]; then
     echo -e "\t\tERROR: $error: Instance: $Instance_UUID Volume: $Volume_UUID while attempting detach"
-    echo "SQL: $Q"
-    RQ=$(mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD --batch --skip-column-names -e "$Q")
-    echo "RQ: $RQ"
+    # echo "SQL Nova: $Q"
+    # Add --verbose --verbose then test output for 'Rows matched: # Changed: # Warnings: #'
+    # Should return: Matched 1|0 Changed 1|0(if matched was 0) Warnings 0
+    # Expect 1 1 0
+    #RQ=$(mysql -h $MYSQL_HOST -u $MYSQL_NOVA_USER -p$MYSQL_NOVA_PASSWORD --batch --skip-column-names -e "$SQL_Nova")
+    mysql_query $MYSQL_HOST $MYSQL_NOVA_USER $MYSQL_NOVA_PASSWORD "$SQL_Nova"
+    #if [ $? -eq 0 ]; then
+    #  return $?
+    # echo "RQ: $RQ"
+    # echo "SQL Cinder: $Q"
+    #RQ=$(mysql -h $MYSQL_HOST -u $MYSQL_CINDER_USER -p$MYSQL_CINDER_PASSWORD --batch --skip-column-names -e "$SQL_Cinder")
+    mysql_query $MYSQL_HOST $MYSQL_CINDER_USER $MYSQL_CINDER_PASSWORD "$SQL_Cinder"
+    # echo "RQ: $RQ"
     return 0
   else
     return 0
@@ -193,6 +249,7 @@ instance_delete () {
   local host=$2
 
   echo -e "\n\tAttempting to deleted instance: $Instance_UUID..."
+  nova reset-state --active $Instance_UUID
   nova force-delete $Instance_UUID
   error=$?
   if [ $error -ne 0 ]; then
@@ -214,6 +271,7 @@ instance_delete () {
 
 instance_cleanup () {
   local Instance_UUID=$1
+  local error error2
 
   echo "Attempting to fix: $Instance_UUID"
   details=$(nova show $Instance_UUID 2>/dev/null)
@@ -222,27 +280,43 @@ instance_cleanup () {
       #  ACTIVE,deleting,NOSTATE - Still trying
       #  ERROR,-,NOSTATE - reset,force
       #  'fault' may contain a stack trace
-    ###  Get attached volumes and detach, then delete
-      #IName=$(echo "$details" | grep '| name ' | awk '{ print $4 }')
-      # Change to get data from $details
-      #volumes=$(nova list --name $IName --fields os-extended-volumes:volumes_attached | egrep -v '[+]|ID' | awk -F\| '{ print $3 }' | sed "s/u\'/\'/g" | sed s/\'/\"/g | jq '.[].id?' | sed s/\"//g)
-    volumes=$(echo "$details" | grep 'os-extended-volumes:volumes_attached' | awk -F\| '{ print $3 }' | jq '.[].id' | sed s/\"//g)
-    for V in $volumes; do
-      volume_detach $Instance_UUID $V
-      if [ $? -eq 0 ]; then
-        volume_delete $V
-      fi
-    done
-    ### Get Floating IPs and disassociate
-    Floating_IP=$(echo "$details" | grep network | awk '{ print $6 }')
-    floating_ip_disassociate $Instance_UUID $Floating_IP
-    ### Get Fixed IPs and remove
-    Fixed_IP=$(echo "$details" | grep network | awk '{ print $5 }' | sed 's/,$//')
-    # nova fixed-ip-get to get/verify fixed ip - returns: instance name, host
-    fixed_ip_disassociate $Instance_UUID $Fixed_IP
-    sleep 2
-    host=$(echo "$details" | grep OS-EXT-SRV-ATTR:host | awk '{ print $4 }')
-    instance_delete $Instance_UUID $host
+    # Reset instance API
+    nova reset-state --active $Instance_UUID
+    # Delete instance API
+    nova force-delete $Instance_UUID
+    error=$?
+    sleep 4
+    nova show $Instance_UUID >/dev/null 2>&1
+    error2=$?
+    if [ $error -ne 0 -o $error2 -eq 0 ]; then
+      # If instance still exists
+      echo -e "\tForce Delete failed. Starting deep delete..."
+      # Reset instance API
+      nova reset-state --active $Instance_UUID
+      ###  Get attached volumes and detach, then delete
+        #IName=$(echo "$details" | grep '| name ' | awk '{ print $4 }')
+        # Change to get data from $details
+        #volumes=$(nova list --name $IName --fields os-extended-volumes:volumes_attached | egrep -v '[+]|ID' | awk -F\| '{ print $3 }' | sed "s/u\'/\'/g" | sed s/\'/\"/g | jq '.[].id?' | sed s/\"//g)
+      volumes=$(echo "$details" | grep 'os-extended-volumes:volumes_attached' | awk -F\| '{ print $3 }' | jq '.[].id' | sed s/\"//g)
+      for V in $volumes; do
+        volume_detach $Instance_UUID $V
+        if [ $? -eq 0 ]; then
+          volume_delete $V
+        fi
+      done
+      ### Get Floating IPs and disassociate
+      #Floating_IP=$(echo "$details" | grep network | awk '{ print $6 }')
+      #floating_ip_disassociate $Instance_UUID $Floating_IP
+      ### Get Fixed IPs and remove
+      #Fixed_IP=$(echo "$details" | grep network | awk '{ print $5 }' | sed 's/,$//')
+      # nova fixed-ip-get to get/verify fixed ip - returns: instance name, host
+      #fixed_ip_disassociate $Instance_UUID $Fixed_IP
+      sleep 2
+      host=$(echo "$details" | grep OS-EXT-SRV-ATTR:host | awk '{ print $4 }')
+      instance_delete $Instance_UUID $host
+    #else
+      # verify instance is gone, otherwise call instance_delete
+    fi
   else
     echo "ERROR: $?: Instance $Instance_UUID not found"
   fi
