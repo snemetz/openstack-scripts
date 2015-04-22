@@ -10,6 +10,7 @@
 #       reset instance, attempt to detach cinder volumes, attempt to delete
 #
 # Author: Steven Nemetz
+# snemetz@hotmail.com
 
 # TODO:
 #	script to verify resources and OpenStack DB are in sync. Report on differences
@@ -46,6 +47,26 @@ EOF`
   fi
 }
 
+mysql_call () {
+  local MySQL_Host=$1
+  local MySQL_User=$2
+  local MySQL_Password=$3
+  local SQL=$4
+  local MySQL_Verbose=$5
+  local SQL_Results
+
+  echo -e "\tApplying SQL for $MySQL_User..." 1>&2
+  #echo -e "\tSQL:$SQL" 1>&2
+  verbose=''
+  if [ -n "$MySQL_Verbose" ]; then
+    verbose='--verbose --verbose'
+  fi
+  #echo -e "\tVerbose='$verbose'" 1>&2
+  SQL_Results=$(mysql -h $MySQL_Host -u $MySQL_User -p$MySQL_Password $verbose --batch --skip-column-names -e "$SQL" 2>/dev/null)
+  #SQL_Results=$(mysql -h $MySQL_Host -u $MySQL_User -p$MySQL_Password $verbose --batch --skip-column-names -e "$SQL")
+  echo $SQL_Results
+}
+
 mysql_query () {
   local MySQL_Host=$1
   local MySQL_User=$2
@@ -53,12 +74,15 @@ mysql_query () {
   local SQL=$4
   local SQL_Results
 
-  echo -e "\tApplying SQL for $MySQL_User..."
+  #echo -e "\tApplying SQL for $MySQL_User..."
     # Add --verbose --verbose then test output for 'Rows matched: # Changed: # Warnings: #'
     # Should return: Matched 1|0 Changed 1|0(if matched was 0) Warnings 0
     # Expect 1 1 0
-  SQL_Results=$(mysql -h $MySQL_Host -u $MySQL_User -p$MySQL_Password --verbose --verbose --batch --skip-column-names -e "$SQL" 2>/dev/null)
+  #SQL_Results=$(mysql -h $MySQL_Host -u $MySQL_User -p$MySQL_Password --verbose --verbose --batch --skip-column-names -e "$SQL" 2>/dev/null)
+
+  SQL_Results=$(mysql_call $MySQL_Host $MySQL_User $MySQL_Password "$SQL" 'Metrics' )
   Result_Stats=($(echo "$SQL_Results" | grep 'Rows matched:' | awk -F: '{ print $2$3$4 }' | awk '{ print $1" "$3" "$5 }'))
+  #echo -e "\tSQL Results= ${Result_Stats[*]}"
   # if [ "${Result_Stats[@]:0:2}" == "1 1" ]; then # All Good - DOESN'T WORK, complains about too many arguments
   if [ ${Result_Stats[0]} -eq 1 -a ${Result_Stats[1]} -eq 0 ]; then
     echo -e "\tWARNING: DB query matched but didn't change anything"
@@ -85,6 +109,10 @@ fixed_ip_disassociate () {
 
   local Instance_UUID=$1
   local Fixed_IP=$2
+  local Host=$3
+  local VM_Name=$4
+  # For each fixed IP clean all floating IPs attached to it
+
   echo -e "\n\tAttempting to remove Fixed IP: $Fixed_IP..."
   nova remove-fixed-ip $Instance_UUID $Fixed_IP
   error=$?
@@ -92,7 +120,8 @@ fixed_ip_disassociate () {
     echo -e "\t\tERROR: $error: Fixed IP: $Fixed_IP, Instance: $Instance_UUID failed to remove fixed ip"
     # Cleanup database
     # update nova.fixed_ips set updated_at=now(),allocated=1,host=NULL,instance_uuid=NULL,virtual_interface_id=NULL where address = "$Fixed_IP";
-    # Cleanup hypervisor
+    # Cleanup hypervisor - remove ip and nwfilter
+    # ssh root@$Host
   fi
 }
 
@@ -106,6 +135,7 @@ floating_ip_disassociate () {
 
   local Instance_UUID=$1
   local Floating_IP=$2
+  local Host=$3
   echo -e "\n\tAtttempting to remove Floating IP: $Floating_IP..."
   nova floating-ip-disassociate $Instance_UUID $Floating_IP
   error=$?
@@ -113,7 +143,82 @@ floating_ip_disassociate () {
     echo -e "\t\tERROR: $error: Floating IP: $Floating_IP, Instance: $Instance_UUID failed to disassociate floating ip"
     # Cleanup database
     # update nova.floating_ips set updated_at=now(),fixed_ip_id=NULL,project_id=NULL,host=NULL,auto_assigned=0 where address = "$Floating_IP";
-    # Cleanup hypervisor
+    # Cleanup hypervisor - remove IP and NAT
+    # ssh root@$Host
+  fi
+}
+
+ip_cleanup () {
+  local Instance_UUID=$1
+  local VM_Name=$2
+  local Host=$3
+  declare -a fixed_ips
+  declare -a floating_ips
+
+  script_ip_cleanup="${dirtmp}/host_ip_clean.sh"
+
+  echo -e "\tCleaning IPs..."
+  # Query DB to get all fixed IPs IDs
+  SQL_Fixed_Ips="select id from nova.fixed_ips where instance_uuid = '$Instance_UUID';"
+  fixed_ip_ids=$(mysql_call $MYSQL_HOST $MYSQL_NOVA_USER $MYSQL_NOVA_PASSWORD "$SQL_Fixed_Ips")
+  for fixed_id in $fixed_ip_ids; do
+    echo -e "\tCleaning Fixed Ip ID: $fixed_id"
+    # Query DB for floating IP IDs
+    SQL_Floating_Ips="select id from nova.floating_ips where fixed_ip_id = '$fixed_id';"
+    floating_ip_ids=$(mysql_call $MYSQL_HOST $MYSQL_NOVA_USER $MYSQL_NOVA_PASSWORD "$SQL_Floating_Ips")
+    for floating_id in $floating_ip_ids; do
+      echo -e "\t\tCleaning Floating IP ID: $floating_id"
+      # Get Floating IPs
+      SQL_Floating_IP="select address from nova.floating_ips where id = '$floating_id';"
+         	#floating_ips=("${floating_ips[@]}" $(mysql_call))
+      floating_ips+=($(mysql_call $MYSQL_HOST $MYSQL_NOVA_USER $MYSQL_NOVA_PASSWORD "$SQL_Floating_IP"))
+      # Clean floating IP in database
+      SQL_Floating_Clean="update nova.floating_ips set updated_at=now(),fixed_ip_id=NULL,project_id=NULL,host=NULL,auto_assigned=0 where id = '$floating_id';"
+      mysql_query $MYSQL_HOST $MYSQL_NOVA_USER $MYSQL_NOVA_PASSWORD "$SQL_Floating_Clean"
+    done
+    # Clean fixed IP - maintan table to clean host later
+    #fixed_ips+=($(mysql_call))
+    SQL_Fixed_IP="select address from nova.fixed_ips where id = '$fixed_id';"
+    fixed_ips+=($(mysql_call $MYSQL_HOST $MYSQL_NOVA_USER $MYSQL_NOVA_PASSWORD "$SQL_Fixed_IP"))
+    SQL_Fixed_Clean="update nova.fixed_ips set updated_at=now(),allocated=1,host=NULL,instance_uuid=NULL,virtual_interface_id=NULL where id = '$fixed_id';"
+    mysql_query $MYSQL_HOST $MYSQL_NOVA_USER $MYSQL_NOVA_PASSWORD "$SQL_Fixed_Clean"
+  done
+  if [ -n "${fixed_ips[*]}" -o -n "${floating_ips[*]}" ]; then
+    echo -e "\nHost IP cleanup..."
+    echo "Clean '$VM_Name' on '$Host'"
+    echo "Floating IPs: ${floating_ips[*]}"
+    echo "Fixed IPs: ${fixed_ips[*]}"
+      # /var/lib/nova/instances/ gone
+      # vm gone
+      # NAT exists
+      # /etc/libvirt/nwfilter/ gone
+      # /etc/libvirt/qemu/ gone
+      # fixed IP gone
+
+    cat > $script_ip_cleanup <<SCRIPT
+#!/bin/bash
+# OpenStack repair cleanup
+#   Cleanup floating & fixed ips for:
+#     Host: $Host
+#     Instance UUID: $Instance_UUID
+#     VM Name: $VM_Name
+#     Floating IPs: ${floating_ips[*]}"
+#     Fixed IPs: ${fixed_ips[*]}
+
+# Floating: remove NAT & IP
+for float_ip in ${floating_ips[*]}; do
+  iptables -S -t nat | grep \$float_ip | sed 's/^-A/-D/' | xargs -r -L1 iptables --table nat
+  if [ \$(ip addr | grep \$float_ip | wc -l) -ne 0 ]; then
+    ip addr del \${float_ip}/32 dev eth2.519
+  fi
+done
+# Fixed: remove nwfilter & IP
+#	Might not be needed - appears that removing VM takes care of
+# - virsh dumpxml $VM_Name | grep filterref | ... | xargs -n1 virsh nwfilter-undefine
+SCRIPT
+
+    scp $script_ip_cleanup root@$Host:/tmp/$(basename $script_ip_cleanup)
+    ssh root@$Host "bash /tmp/$(basename $script_ip_cleanup)"
   fi
 }
 
@@ -304,16 +409,28 @@ instance_cleanup () {
           volume_delete $V
         fi
       done
-      ### Get Floating IPs and disassociate
-      #Floating_IP=$(echo "$details" | grep network | awk '{ print $6 }')
-      #floating_ip_disassociate $Instance_UUID $Floating_IP
-      ### Get Fixed IPs and remove
-      #Fixed_IP=$(echo "$details" | grep network | awk '{ print $5 }' | sed 's/,$//')
-      # nova fixed-ip-get to get/verify fixed ip - returns: instance name, host
-      #fixed_ip_disassociate $Instance_UUID $Fixed_IP
-      sleep 2
-      host=$(echo "$details" | grep OS-EXT-SRV-ATTR:host | awk '{ print $4 }')
-      instance_delete $Instance_UUID $host
+      # Attempt to delete instance again
+      nova reset-state --active $Instance_UUID
+      nova force-delete $Instance_UUID
+      error3=$?
+      sleep 4
+      nova show $Instance_UUID >/dev/null 2>&1
+      error4=$?
+      if [ $error3 -ne 0 -o $error4 -eq 0 ]; then
+        # If still failing clean IPs
+        Host=$(echo "$details" | grep OS-EXT-SRV-ATTR:host | awk '{ print $4 }')
+        Instance_Name=$(echo "$details" | grep OS-EXT-SRV-ATTR:instance_name | awk '{ print $4 }')
+        ip_cleanup $Instance_UUID $Instance_Name $Host
+        ### Get Floating IPs and disassociate
+        #Floating_IP=$(echo "$details" | grep network | awk '{ print $6 }')
+        #floating_ip_disassociate $Instance_UUID $Floating_IP
+        ### Get Fixed IPs and remove
+        #Fixed_IP=$(echo "$details" | grep network | awk '{ print $5 }' | sed 's/,$//')
+        # nova fixed-ip-get to get/verify fixed ip - returns: instance name, host
+        #fixed_ip_disassociate $Instance_UUID $Fixed_IP
+        sleep 2
+        instance_delete $Instance_UUID $Host
+      fi
     #else
       # verify instance is gone, otherwise call instance_delete
     fi

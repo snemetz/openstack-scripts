@@ -1,9 +1,14 @@
 #!/bin/bash
 #
-# Cleanup Openstack hypervisor host to make consistant
+# Cleanup Openstack hypervisor host to make consistant with itself.
+#   NOTE: this only checks the host, NOT the OpenStack database
 #	Cleanup KVM nwfilers that VMs don't exist
 #	Cleanup Floating IPs that have no NATs
 #	Cleanup instances kvm & nova instances should match - remove what doesn't
+#
+# Author: Steven Nemetz
+# snemetz@hotmail.com
+
 # TODO:
 #	Cleanup cinder/iscsi inconsistances
 
@@ -12,18 +17,25 @@ ACTION=0
 
 echo "Processing $HOSTNAME..."
 
-Instances=`virsh list --all --name | sed '/^$/ d'`
+tmpdir='/tmp/cleanup'
+mkdir -p $tmpdir
 
+###========================================================
 ### Check if Nova and KVM agree on the number of instances
+###========================================================
 if [ $DEBUG == 1 ]; then
   echo "Checking number of KVM VMs and Nova Instances match..."
 fi
-Instance_UUIDs=$(ls -1d /var/lib/nova/instances/*-* | cut -d/ -f6)
+Instances=`virsh list --all --name | sed '/^$/ d'`
+Instance_UUIDs=$(ls -1d /var/lib/nova/instances/*-* 2>/dev/null | cut -d/ -f6)
+#echo "VM=$(echo '$Instances' | wc -l), Nova=$(echo '$Instance_UUIDs' | wc -l)"
 if [ $(echo "$Instance_UUIDs" | wc -l) -ne $(echo "$Instances" | wc -l) ]; then
   if [ $DEBUG == 1 ]; then
     echo -e "\tNumber Nova and KVM instances do NOT match - Cleaning Nova Instances..."
   fi
+  #--------------------------------------------------------
   # Cleanup nova instances that do not have a matching VM
+  #--------------------------------------------------------
   for UUID in $Instance_UUIDs; do
     if [ -f /var/lib/nova/instances/${UUID}/libvirt.xml ]; then
       vm_name=$(grep '<name>' /var/lib/nova/instances/${UUID}/libvirt.xml | awk -F'name>' '{ print $2 }' | sed 's/..$//')
@@ -40,11 +52,15 @@ if [ $(echo "$Instance_UUIDs" | wc -l) -ne $(echo "$Instances" | wc -l) ]; then
       fi
     fi
   done
+  #--------------------------------------------------------
   # TODO: Cleanup KVM VMs that do not have a Nova Instance
   # Haven't seen this yet. Might not be needed
+  #--------------------------------------------------------
 fi
 
+###========================================================
 ### Cleanup KVM nwfilters for instances that no longer exist
+###========================================================
 for F in `virsh nwfilter-list | grep instance | awk '{ print $2 }'`; do
   nwf=`echo $F | cut -d- -f3-4`
   if [ $DEBUG == 1 ]; then
@@ -61,12 +77,11 @@ for F in `virsh nwfilter-list | grep instance | awk '{ print $2 }'`; do
   fi
 done
 
-tmpdir='/tmp/cleanup'
-mkdir -p $tmpdir
-
+###========================================================
 ### Cleanup NATs that do not have an nwfilter with the instance (fixed) ip
+###========================================================
 echo "Checking NATs have corresponding nwfilters..."
-grep IP /etc/libvirt/nwfilter/nova-instance-* | awk '{ print $4 }' | cut -d= -f2 | cut -c2- | sed 's#...$##' | sort > $tmpdir/nwfilter-ips
+grep IP /etc/libvirt/nwfilter/nova-instance-* 2>/dev/null | awk '{ print $4 }' | cut -d= -f2 | cut -c2- | sed 's#...$##' | sort > $tmpdir/nwfilter-ips
 # Get current iptables NAT floating-snat
 iptables -n -t nat -L nova-network-float-snat | egrep -v 'Chain|target' | awk '{ print $4 }' | sort -u > $tmpdir/float-snat-local-ips
 for IP in `diff $tmpdir/nwfilter-ips $tmpdir/float-snat-local-ips | grep '>' | awk '{ print $2 }'`; do
@@ -82,13 +97,14 @@ for IP in `diff $tmpdir/nwfilter-ips $tmpdir/float-snat-local-ips | grep '>' | a
     else
       echo -e "\tERROR: rules failed check - NOT deleted"
     fi
-    # Is this needed ??
     # service iptables save
     # service iptables restart
   fi
 done
 
+###========================================================
 ### Cleanup Floating IPs that do not have a matching NAT
+###========================================================
 # Get current live floating IPs
 ip addr show scope global eth2.519 | grep inet | awk '{ print $2 }' | grep '/32' | cut -d/ -f1 | sort > $tmpdir/ips
 # Get current iptables NAT floating-snat

@@ -5,12 +5,19 @@
 # Author: Steven Nemetz
 # snemetz@hotmail.com
 
+# TODO:
+#	option for csv output
+
 #volume_states="creating available attaching in-use deleting error error_deleting backing-up restoring-backup error_restoring error_extending"
 
 instance_states="ACTIVE BUILD DELETED ERROR PAUSED RESCUED RESIZED SHELVED SHELVED_OFFLOADED SHUTOFF SOFT_DELETED STOPPED SUSPENDED"
+# Verify states
+# Verified instance states: ACTIVE, BUILD, DELETED, ERROR, SHUTDOWN
+# Find rest of states for below
 power_states="NOSTATE Running Shutdown" # numbers ?
 task_states="deleting None"
 vm_states="active error"
+
 declare -A breakout
 
 echo "Instance status counts:"
