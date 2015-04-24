@@ -8,16 +8,17 @@ dir_data="${dir_tmp}/openstack-data"
 mkdir -p $dir_data
 
 ### Get data from hypervisor nodes
-hypervisors=`nova hypervisor-list | awk -F \| '/node/ { print $3 }' | cut -d. -f1 | sort`
-# TODO: only up or up & enabled nodes
+#hypervisors=`nova hypervisor-list | awk -F \| '/node/ { print $3 }' | cut -d. -f1 | sort`
+hypervisors=$(nova service-list | grep nova-compute | grep ' up ' | awk '{ print $6 }' | sort -u)
 
 # Process: loop on hypervisor list
 # Get remote data
 #if [ 1 == 2 ]; then
   for H in $hypervisors; do
-    scp report-node-resources.sh root@$H:
+    echo "Collecting data from: $H..."
+    scp -q report-node-resources.sh root@$H:
     ssh root@$H ./report-node-resources.sh
-    scp root@$H:openstack.data $dir_data/$H-data
+    scp -q root@$H:openstack.data $dir_data/$H-data
   done
 #fi
 

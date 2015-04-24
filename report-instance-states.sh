@@ -15,7 +15,7 @@ instance_states="ACTIVE BUILD DELETED ERROR PAUSED RESCUED RESIZED SHELVED SHELV
 # Verified instance states: ACTIVE, BUILD, DELETED, ERROR, SHUTDOWN
 # Find rest of states for below
 power_states="NOSTATE Running Shutdown" # numbers ?
-task_states="deleting None"
+task_states="deleting None scheduling spawning"
 vm_states="active error"
 
 declare -A breakout

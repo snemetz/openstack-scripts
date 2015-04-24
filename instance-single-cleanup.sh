@@ -64,7 +64,7 @@ mysql_call () {
   #echo -e "\tVerbose='$verbose'" 1>&2
   SQL_Results=$(mysql -h $MySQL_Host -u $MySQL_User -p$MySQL_Password $verbose --batch --skip-column-names -e "$SQL" 2>/dev/null)
   #SQL_Results=$(mysql -h $MySQL_Host -u $MySQL_User -p$MySQL_Password $verbose --batch --skip-column-names -e "$SQL")
-  echo $SQL_Results
+  echo "$SQL_Results"
 }
 
 mysql_query () {

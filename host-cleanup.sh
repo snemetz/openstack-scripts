@@ -28,6 +28,7 @@ if [ $DEBUG == 1 ]; then
 fi
 Instances=`virsh list --all --name | sed '/^$/ d'`
 Instance_UUIDs=$(ls -1d /var/lib/nova/instances/*-* 2>/dev/null | cut -d/ -f6)
+Instances_Nova=''
 #echo "VM=$(echo '$Instances' | wc -l), Nova=$(echo '$Instance_UUIDs' | wc -l)"
 if [ $(echo "$Instance_UUIDs" | wc -l) -ne $(echo "$Instances" | wc -l) ]; then
   if [ $DEBUG == 1 ]; then
@@ -39,6 +40,8 @@ if [ $(echo "$Instance_UUIDs" | wc -l) -ne $(echo "$Instances" | wc -l) ]; then
   for UUID in $Instance_UUIDs; do
     if [ -f /var/lib/nova/instances/${UUID}/libvirt.xml ]; then
       vm_name=$(grep '<name>' /var/lib/nova/instances/${UUID}/libvirt.xml | awk -F'name>' '{ print $2 }' | sed 's/..$//')
+      # Build list of names
+      Instances_Nova+=" $vm_name"
     else
       vm_name='INSTANCE_TO_CLEANUP'
     fi
@@ -53,9 +56,20 @@ if [ $(echo "$Instance_UUIDs" | wc -l) -ne $(echo "$Instances" | wc -l) ]; then
     fi
   done
   #--------------------------------------------------------
-  # TODO: Cleanup KVM VMs that do not have a Nova Instance
-  # Haven't seen this yet. Might not be needed
+  # Cleanup KVM VMs that do not have a Nova Instance
+  # TODO: Still need to test this code
   #--------------------------------------------------------
+  for Instance_Name in $Instances; do
+    if ! [[ $Instances_Nova =~ $Instance_Name ]]; then
+      # If there is NOT a nova instance for the VM, remove the VM
+      if [ $DEBUG == 1 ]; then
+        echo -e "\tRemoving KVM VM: $Instance_Name"
+      fi
+      if [ $ACTION == 1 ]; then
+        echo "TODO: virsh undefine $Instance_name"
+      fi
+    fi
+  done
 fi
 
 ###========================================================
