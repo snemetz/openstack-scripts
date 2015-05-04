@@ -13,11 +13,35 @@ cat > $script_host_setup <<SCRIPT
 #=====================
 # Additional system setup - Ubuntu
 #=====================
-# apt-get install -y chkconfig linux-crashdump lldpd inetutils-traceroute python-pip tcptraceroute libguestfs-tools virt-top
-# pip install crudini
-apt-get install -q -y sysstat
-sed -i '/ENABLED=/ s/=.*/="true"/' /etc/default/sysstat
-service sysstat restart
+# Setup repos to get around Mirantis Fuel setup
+#--------------------
+srcfile='/etc/apt/sources.list'
+os_name=\$(lsb_release -sc)
+# Setup All Repositories
+cat >> \$srcfile <<REPOS
+
+deb http://us.archive.ubuntu.com/ubuntu/ \${os_name} main restricted universe multiverse
+deb http://us.archive.ubuntu.com/ubuntu/ \${os_name}-updates main restricted universe multiverse
+deb http://us.archive.ubuntu.com/ubuntu/ \${os_name}-backports main restricted universe multiverse
+deb http://us.archive.ubuntu.com/ubuntu/ \${os_name}-security main restricted universe multiverse
+REPOS
+
+apt-get update
+# For nova-compute:
+apt-get install -y sysfsutils
+# To help manage systems:
+#apt-get install -y chkconfig linux-crashdump lldpd inetutils-traceroute python-pip tcptraceroute libguestfs-tools sysstat virt-top
+#pip install crudini
+#sed -i '/ENABLED=/ s/=.*/="true"/' /etc/default/sysstat
+#service sysstat restart
+
+#--------------------
+# Cleanup from kluge for Mirantis Fuel environment
+#--------------------
+sed -i '/^deb http:\/\/us.archive/ d' \$srcfile
+apt-get update
+
+exit
 
 #=====================
 # Cinder setup
