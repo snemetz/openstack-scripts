@@ -2,7 +2,8 @@
 #
 # Cleanup Openstack hypervisor host to make consistant with itself.
 #   NOTE: this only checks the host, NOT the OpenStack database
-#	Cleanup KVM nwfilers that VMs don't exist
+#	Cleanup KVM nwfilters that VMs don't exist
+#	Cleanup NATs that don't have KVM nwfilters
 #	Cleanup Floating IPs that have no NATs
 #	Cleanup instances kvm & nova instances should match - remove what doesn't
 #
@@ -11,6 +12,11 @@
 
 # TODO:
 #	Cleanup cinder/iscsi inconsistances
+#	Cleanup dnsmasq /var/lib/nova/network/<network>.conf
+#		mac,name,ip
+#		dhcp_release <interface> <ip address> <mac> [<client id>]
+#	  Unknown if this has been a problem
+#	  Should only be fixed IPs
 
 DEBUG=1
 ACTION=0

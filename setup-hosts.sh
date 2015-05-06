@@ -94,9 +94,10 @@ SCRIPT
 chmod +x $script_host_setup
 
 for H in $hypervisors; do
+  echo "Updating $H..."
   scp $script_host_setup root@$H:
   ssh root@$H ./$(basename $script_host_setup)
-  if [ $delay > 0 ]; then
+  if [ $delay -gt 0 ]; then
     sleep $delay
   fi
 done
