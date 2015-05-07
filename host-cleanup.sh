@@ -16,7 +16,7 @@
 #		mac,name,ip
 #		dhcp_release <interface> <ip address> <mac> [<client id>]
 #	  Unknown if this has been a problem
-#	  Should only be fixed IPs
+#	  Should only be fixed IPs. These should match what is in the nwfilters
 
 DEBUG=1
 ACTION=0
@@ -96,6 +96,12 @@ for F in `virsh nwfilter-list | grep instance | awk '{ print $2 }'`; do
     fi
   fi
 done
+
+###========================================================
+### Cleanup dhcp leases that are not in a KVM nwfilter
+###========================================================
+# TODO
+#awk -F, '{ print $3 }' /var/lib/nova/network/*.conf | sort > $tmpdir/dhcp-leases
 
 ###========================================================
 ### Cleanup NATs that do not have an nwfilter with the instance (fixed) ip
