@@ -10,7 +10,7 @@ openstack_env='/root/keystonerc_admin'
 dir_pub_keys='/opt'
 quota_cores=40
 #quota_cores=${quota_cores:-40}
-quota_instance=$quota_cores
+quota_instances=$quota_cores
 quota_ram=$(( quota_cores * 3840 ))
 
 tenant_name=$1
@@ -38,10 +38,14 @@ if [ -z "$tenant_id" ]; then
   echo "ERROR: OpenStack tenant $tenant_name not found"
   exit 1
 fi
-user_pubkey="${dir_pub_key}/${tenant_name}.pub"
+user_pubkey="${dir_pub_keys}/${tenant_name}.pub"
 
-keystone user-create --name ${user_name} --tenant ${tenant_id} --pass "$user_password" --email "${user_email}"
-user_id=$(keystone user-list | grep ${user_name} | awk '{ print $2 }')
+user_id=$(keystone user-create --name ${user_name} --tenant ${tenant_id} --pass "$user_password" --email "${user_email}" | grep ' id ' | awk '{ print $4 }')
+#user_id=$(keystone user-list | grep ${user_name} | awk '{ print $2 }')
+if [ -z "$user_id" ]; then
+  echo "ERROR: user creation failed!"
+  exit 2
+fi
 keystone user-role-add --user ${user_id} --role 'Member' --tenant ${tenant_id}
 nova --os-username=${user_name} --os-password="$user_password" --os-tenant-name=${tenant_name} keypair-add --pub-key=${user_pubkey} ${tenant_name}
 nova --os-tenant-name ${tenant_name} quota-update --user ${user_id} --instances ${quota_instances} --cores ${quota_cores} --ram ${quota_ram} ${tenant_id}
