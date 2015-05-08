@@ -18,4 +18,9 @@ echo "=== virsh_list" >> $output
 virsh list --all --name | sed '/^$/ d' >> $output
 echo "=== virsh_nwfilter" >> $output
 virsh nwfilter-list | grep nova-instance- | awk '{ print $2 }' | cut -d- -f3-5 >> $output
+
 #ls -1 /etc/libvirt/nwfilter/nova-instance-* | cut -d- -f3-4
+
+# memory & cpu allocated
+# total_vcpu=$(grep vcpu /var/lib/nova/instances/*-*/libvirt.xml | cut -d\> -f2 | cut -d\< -f1 | awk '{sum+=$1}END{print sum}')
+# total_mem=$(grep memory /var/lib/nova/instances/*-*/libvirt.xml | cut -d\> -f2 | cut -d\< -f1 | awk '{sum+=$1}END{print sum}')

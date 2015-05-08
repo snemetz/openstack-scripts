@@ -81,6 +81,9 @@ for V in $vms; do
   ((memtotal+=$mem))
   ((cputotal+=$vcpu))
 done
+# memory & cpu allocated
+# total_vcpu=$(grep vcpu /var/lib/nova/instances/*-*/libvirt.xml | cut -d\> -f2 | cut -d\< -f1 | awk '{sum+=$1}END{print sum}')
+# total_mem=$(grep memory /var/lib/nova/instances/*-*/libvirt.xml | cut -d\> -f2 | cut -d\< -f1 | awk '{sum+=$1}END{print sum}')
 echo -e "Totals: VCPUs: $cputotal, Memory: $memtotal ($(convert $memtotal))\n"
 
 rm -f $tmp_xml

@@ -23,7 +23,7 @@ tenant_id=$(keystone tenant-list | grep $tenant_name | awk '{ print $2 }')
 
 if [ -n "$user_name" ]; then
   # Get user quotas
-  user_id=$(keystone user-list | grep ${user_name} | awk '{ print $2 }')
+  user_id=$(keystone user-list | grep " ${user_name} " | awk '{ print $2 }')
   nova quota-show --tenant $tenant_id --user $user_id
 else
   # Get quotas for all users in tenant
