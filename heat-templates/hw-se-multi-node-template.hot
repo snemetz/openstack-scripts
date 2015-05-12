@@ -1,0 +1,40 @@
+heat_template_version: 2013-05-23
+
+description: Launch groups of VMs with a specific HWX naming convention.
+
+parameters:
+  key_name:
+    description: Name of an existing PublicKey to enable SSH access to the instances.
+    type: string
+    default: secloud
+  instance_flavor:
+    description: VM Flavor
+    type: string
+    default: m3.medium
+  instance_image:
+    description: VM Image
+    type: string
+    default: centos-6.5-expander
+  num_workers:
+    description: Number of Workers to launch
+    type: string
+    constraints:
+      - allowed_values: [ "1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20" ]
+  admin_password:
+    description: Admin password for the new VMs
+    type: string
+
+resources:
+  server_group:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: { get_param: num_workers }
+      resource_def:
+        type: OS::Nova::Server
+        properties:
+          flavor: { get_param: instance_flavor }
+          image: { get_param: instance_image }
+          name: { "Fn::Join" : [ "", [ { get_param: "OS::stack_name" }, "HWX%(slave-num)" ]] }
+          key_name: { get_param: key_name }
+          admin_pass: { get_param: admin_password }
+          admin_user: root
