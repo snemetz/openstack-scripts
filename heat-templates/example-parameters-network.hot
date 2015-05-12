@@ -1,0 +1,51 @@
+heat_template_version: 2013-05-23
+
+description: Simple template to deploy a single compute instance on a specified network
+
+parameters:
+  flavor:
+    type: string
+    label: Instance Type
+    decription: Type of instance (flavor) to be used
+  image_id:
+    type: string
+    label: Image ID
+    decription: Image to be used for compute instance
+    default: m1.small
+    constraints:
+       - allowed_values: [ m1.medium, m1.large, m1.xlarge ]
+         description: Value must be one of m1.medium, m1.large or m1.xlarge.
+  key_name:
+    type: string
+    label: Key Name
+    decription: Name of key-pair to be used for compute instance
+  network:
+    type: string
+    label: Network UUID
+    decription: Network to attach to
+    default: f5ea5eac-0a96-4d8a-bc6c-2725c11e8f8c
+    constraints:
+      - allowed_values: [ f5ea5eac-0a96-4d8a-bc6c-2725c11e8f8c, 9a219b27-55d6-4366-8877-230113be078e ]
+        description: Must be one of the networks associated with the tenant
+#      - allowed_pattern: "([a-z0-9]-){4}[a-z0-9]"
+#        description: Network UUID required
+
+resources:
+  my_instance:
+    type: OS::Nova::Server
+    properties:
+      flavor: { get_param: flavor }
+      image: { get_param: image_id }
+      key_name: { get_param: key_name }
+      networks:
+        - network: { get_param: network }
+
+outputs:
+  instance_ip:
+    description: IP address of the deployed compute instance
+    value: { get_attr: [my_instance, first_address] }
+  instance_private_ip:
+    description: Private IP address of the deployed compute instance
+    value: { get_attr: [my_instance, networks, private, 0] }
+
+

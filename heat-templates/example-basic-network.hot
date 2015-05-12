@@ -1,0 +1,13 @@
+heat_template_version: 2013-05-23
+
+description: Simple template to deploy a single compute instance on a specified network
+
+resources:
+  my_instance:
+    type: OS::Nova::Server
+    properties:
+      key_name: my_key
+      image: ubuntu-trusty-x86_64
+      flavor: m1.small
+      networks:
+        - network: network_UUID
