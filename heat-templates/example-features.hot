@@ -3,6 +3,24 @@ heat_template_version: 2013-05-23
 #   2013-05-23 - Icehouse: get_attr get_file get_param get_resource list_join resource_facade str_replace Fn::Select Fn::Base64 Fn::GetAZs Fn::Join Fn::MemberListToMap Fn::Replace Fn::ResourceFacade Fn::Split Ref
 #   2014-10-16 - Juno    : get_attr get_file get_param get_resource list_join resource_facade str_replace Fn::Select
 #   2015-04-30 - Kilo    : get_attr get_file get_param get_resource list_join resource_facade str_replace Fn::Select repeat digest
+# Reference: http://docs.openstack.org/developer/heat/template_guide/hot_spec.html
+
+# Pseudo Parameters (use get_param):
+#  OS::stack_name - Stack Name
+#  OS::stack_id   - Stack UUID
+#  OS::project_id - Project/Tenant UUID
+
+# Intrinsic Functions - get values at runtime:
+#  get_attr        : reference an attribute of a resource
+#  get_file        : read a file as a string
+#  get_param       : input
+#  get_resource    : reference another resource within the same template
+#  list_join       : join a list of strings with a delimiter
+#  resource_facade : retrieve resource facade data in the parent template
+#  str_replace     : 
+#  Fn::Select      : From CFN
+#  repeat          : transform a list to a new list based on a template
+#  digest          : digest operations (hashes)
 
 description: Simple template to deploy a single compute instance on a specified network
 
@@ -35,16 +53,27 @@ parameters:
         description: Must be one of the networks associated with the tenant
 #      - allowed_pattern: "([a-z0-9]-){4}[a-z0-9]"
 #        description: Network UUID required
+  num_nodes:
+    description: Number of instances to create
+    type: number
+    constraints:
+      - range: { min: 1, max: 20 }
+        description: 1 to 20 instances can be created
 
 resources:
   my_instance:
     type: OS::Nova::Server
     properties:
+      count: { get_param: num_nodes }
       flavor: { get_param: flavor }
       image: { get_param: image_id }
       key_name: { get_param: key_name }
       networks:
         - network: { get_param: network }
+#    metadata:
+#    depends_on: <resource id> or [ <id>, <id>, ... ]
+#    update_policy:
+#    deletion_policy:
 
 outputs:
   instance_ip:
