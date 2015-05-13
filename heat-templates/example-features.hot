@@ -3,7 +3,17 @@ heat_template_version: 2013-05-23
 #   2013-05-23 - Icehouse: get_attr get_file get_param get_resource list_join resource_facade str_replace Fn::Select Fn::Base64 Fn::GetAZs Fn::Join Fn::MemberListToMap Fn::Replace Fn::ResourceFacade Fn::Split Ref
 #   2014-10-16 - Juno    : get_attr get_file get_param get_resource list_join resource_facade str_replace Fn::Select
 #   2015-04-30 - Kilo    : get_attr get_file get_param get_resource list_join resource_facade str_replace Fn::Select repeat digest
-# Reference: http://docs.openstack.org/developer/heat/template_guide/hot_spec.html
+# References:
+#  http://docs.openstack.org/developer/heat/template_guide/hot_spec.html  - Template spec
+#  http://docs.openstack.org/developer/heat/template_guide/openstack.html - OpenStack Resource Types
+#  https://developer.rackspace.com/blog/openstack-orchestration-in-depth-part-1-introduction-to-heat/
+#  https://developer.rackspace.com/blog/openstack-orchestration-in-depth-part-2-single-instance-deployments/
+#  https://developer.rackspace.com/blog/openstack-orchestration-in-depth-part-3-multi-instance-deployments/
+#  https://developer.rackspace.com/blog/openstack-orchestration-in-depth-part-4-scaling/
+#  https://github.com/openstack/heat-templates - Examples
+#
+# Tools:
+#  https://dev.cloudwatt.com/en/blog/introducing-flame-automatic-heat-template-generation.html
 
 # Pseudo Parameters (use get_param):
 #  OS::stack_name - Stack Name
@@ -30,11 +40,11 @@ parameters:
   flavor:
     type: string
     label: Instance Type
-    decription: Type of instance (flavor) to be used
+    description: Type of instance (flavor) to be used
   image_id:
     type: string
     label: Image ID
-    decription: Image to be used for compute instance
+    description: Image to be used for compute instance
     default: m1.small
     constraints:
        - allowed_values: [ m1.medium, m1.large, m1.xlarge ]
@@ -42,11 +52,11 @@ parameters:
   key_name:
     type: string
     label: Key Name
-    decription: Name of key-pair to be used for compute instance
+    description: Name of key-pair to be used for compute instance
   network:
     type: string
     label: Network UUID
-    decription: Network to attach to
+    description: Network to attach to
     default: f5ea5eac-0a96-4d8a-bc6c-2725c11e8f8c
     constraints:
       - allowed_values: [ f5ea5eac-0a96-4d8a-bc6c-2725c11e8f8c, 9a219b27-55d6-4366-8877-230113be078e ]
@@ -76,6 +86,9 @@ resources:
 #    deletion_policy:
 
 outputs:
+  instance_name:
+    description: Name of the instance
+    value: { get_attr: [my_instance, name] }
   instance_ip:
     description: IP address of the deployed compute instance
     value: { get_attr: [my_instance, first_address] }
