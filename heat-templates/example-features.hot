@@ -6,11 +6,14 @@ heat_template_version: 2013-05-23
 # References:
 #  http://docs.openstack.org/developer/heat/template_guide/hot_spec.html  - Template spec
 #  http://docs.openstack.org/developer/heat/template_guide/openstack.html - OpenStack Resource Types
+#  http://docs.openstack.org/developer/heat/template_guide/contrib.html   - OpenStack Resource Types - Contributed - Not enabled by default
+#  http://docs.openstack.org/hot-reference/content/openstack-resource-types.html - Ref list
 #  https://developer.rackspace.com/blog/openstack-orchestration-in-depth-part-1-introduction-to-heat/
 #  https://developer.rackspace.com/blog/openstack-orchestration-in-depth-part-2-single-instance-deployments/
 #  https://developer.rackspace.com/blog/openstack-orchestration-in-depth-part-3-multi-instance-deployments/
 #  https://developer.rackspace.com/blog/openstack-orchestration-in-depth-part-4-scaling/
 #  https://github.com/openstack/heat-templates - Examples
+#  http://docs.openstack.org/developer/heat/pluginguide.html - Writing new resource types
 #
 # Tools:
 #  https://dev.cloudwatt.com/en/blog/introducing-flame-automatic-heat-template-generation.html

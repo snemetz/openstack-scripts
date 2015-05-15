@@ -79,7 +79,7 @@ outputs:
     description: Instance names on the hypervisors of the deployed instances
     value: { get_attr: [server_group, instance_name] }
   instance_show:
-    # Works: OS-EXT-SRV-ATTR:hypervisor_hostname, name, OS-EXT-SRV-ATTR:host, id, addresses<network>, 
+    # Works: >= Juno should be able to specify: OS-EXT-SRV-ATTR:hypervisor_hostname, name, OS-EXT-SRV-ATTR:host, id, addresses<network>, 
     description: All details
     value: { get_attr: [server_group, show] }
 #  instance_show_id:
