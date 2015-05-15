@@ -48,22 +48,46 @@ resources:
           flavor: { get_param: instance_flavor }
           image: { get_param: instance_image }
           key_name: { get_param: key_name }
-          name: { "Fn::Join" : [ "", [ { get_param: "OS::stack_name" }, "HWX%(slave-num)" ]] }
+          name: { "Fn::Join" : [ "-", [ { get_param: "OS::stack_name" }, "HWX%(slave-num)" ]] }
           networks:
             - network: { get_param: network }
 
-#outputs:
+# Desire: instance names, fixed & floating IPs, bonus - grouped by instance
+outputs:
 #  all_values:
+#    # Fails
 #    description: List of all values
-#    value: {get_attr: [server_group, value] }
+#    value: { get_attr: [server_group, value] }
 #  server_group_addresses:
+#    # Fails: resources needs to be OS::Heat::InstanceGroup
 #    description: List of resources
 #    value: { get_attr: [server_group, InstanceList] }
-#  instance_ip:
-#    description: IP address of the deployed compute instance
-#    value: { get_attr: [my_instance, first_address] }
-#  instance_private_ip:
-#    description: Private IP address of the deployed compute instance
-#    value: { get_attr: [my_instance, networks, private, 0] }
-
+  instance_fixed_ips:
+    # Works: keep - deprecated - get networks to work
+    description: First Fixed IP address of the deployed compute instances
+    value: { get_attr: [server_group, first_address] }
+#  instance_454_ip:
+#    # NOT working: returns no data - Need >= Juno
+#    description: Floating IP address on net-454 of the deployed compute instances
+#    value: { get_attr: [server_group, networks, net-454, 0] }
+#  instance_floating_ip:
+#    # NOT working: returns no data - Need >= Juno
+#    description: Floating IP address of the deployed compute instance
+#    value: { get_attr: [server_group, networks, nova, 0] }
+  instance_names:
+    # Works: vm instance names
+    description: Instance names on the hypervisors of the deployed instances
+    value: { get_attr: [server_group, instance_name] }
+  instance_show:
+    # Works: OS-EXT-SRV-ATTR:hypervisor_hostname, name, OS-EXT-SRV-ATTR:host, id, addresses<network>, 
+    description: All details
+    value: { get_attr: [server_group, show] }
+#  instance_show_id:
+#    # NOT working: returns no data - Need >= Juno
+#    description: Instance IDs
+#    value: { get_attr: [server_group, show, id, 0] }
+  networks:
+    # Works: good for testing
+    description: List of networks
+    value: { get_attr: [server_group, networks] }
 

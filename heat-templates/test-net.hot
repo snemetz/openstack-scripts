@@ -1,0 +1,62 @@
+heat_template_version: 2013-05-23
+
+description: Launch groups of VMs with a specific HWX naming convention.
+
+parameters:
+  key_name:
+    description: Name of an existing PublicKey to enable SSH access to the instances.
+    type: string
+    default: secloud
+  instance_flavor:
+    description: VM Flavor
+    type: string
+    default: m3.medium
+  instance_image:
+    description: VM Image
+    type: string
+    default: centos-6.5-expander
+  network:
+    type: string
+    label: Network UUID
+    description: Network to attach to
+    default: f5ea5eac-0a96-4d8a-bc6c-2725c11e8f8c
+    constraints:
+      - allowed_values: [ f5ea5eac-0a96-4d8a-bc6c-2725c11e8f8c, 9a219b27-55d6-4366-8877-230113be078e ]
+        description: Must be one of the networks associated with the tenant
+  num_workers:
+    description: Number of Workers to launch
+    type: number
+    constraints:
+      - range: { min: 1, max: 20 }
+    default: 3
+  admin_password:
+    description: Admin password for the new VMs
+    type: string
+    default: Qaz123wsx
+
+resources:
+  server_group:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: { get_param: num_workers }
+      resource_def:
+        type: OS::Nova::Server
+        properties:
+          admin_pass: { get_param: admin_password }
+          admin_user: root
+          flavor: { get_param: instance_flavor }
+          image: { get_param: instance_image }
+          key_name: { get_param: key_name }
+          name: { "Fn::Join" : [ "", [ { get_param: "OS::stack_name" }, "HWX%(slave-num)" ]] }
+          networks:
+            - network: { get_param: network }
+
+#outputs:
+#  instance_ip:
+#    description: IP address of the deployed compute instance
+#    value: { get_attr: [my_instance, first_address] }
+#  instance_private_ip:
+#    description: Private IP address of the deployed compute instance
+#    value: { get_attr: [my_instance, networks, private, 0] }
+
+

@@ -1,0 +1,71 @@
+## HEAT_TEMPLATE
+
+heat_template_version: 2013-05-23
+description: attendance environment
+
+resources:
+  web_nodes:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: 2
+      resource_def:
+        type: OS::Nova::Server
+        properties:
+          name: web-app-%index%
+          key_name: mlopezc1
+          image: ubuntu-14.04
+          flavor: m1.small
+
+
+outputs:
+  first_address:
+    value: { get_attr: [web_nodes, first_address] }
+  networks:
+    value: { get_attr: [web_nodes, networks] }
+  float_ips:
+    value: { get_attr: [web_nodes, networks, public, 1] }
+    # try 0 instead
+
+
+## output shows something like:
+
+
+first_address
+[
+"192.168.120.5",
+"192.168.120.4"
+]
+
+float_ips
+
+--
+
+networks
+[
+{
+"public": [
+"192.168.120.5",
+"172.17.66.138"
+]
+},
+{
+"public": [
+"192.168.120.4",
+"172.17.66.137"
+]
+}
+]
+
+
+So, first_address worked, same for networks, but float_ips returns
+nothing. Im basically trying to get the second ip from each server (in
+the same output format that first_address)
+
+Looking in the doc there a references about the usage of the
+attributes in a ResourceGroup and that it should match to the internal
+resources.
+
+Also, looking at https://review.openstack.org/#/c/106542/ I see that
+the code / functionality its suppose to be there in Juno.
+
+Any ideas ? don't know what I'm missing here.
