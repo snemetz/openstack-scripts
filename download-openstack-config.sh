@@ -26,6 +26,9 @@ for T in $(echo "$tenants" | awk '{ print $2 }'); do
   desc=$(echo "$info_tenant" | grep description | awk -F\| '{ print $3 }' | sed 's/^\s*\(.*\S\)\s*$/\1/')
   echo "$name,$enable,$desc"
 done
+# Database:
+#select id,name,description,enabled,domain_id from keystone.project;
+#keystone tenant-create --name <name> --description <desc>
 
 # Get Flavors
 echo "Flavors:"
@@ -39,12 +42,15 @@ for F in $flavors; do
     item=$(echo "$info_flavor" | egrep "^\| $property" | awk -F\| '{ print $3 }' | sed 's/^\s*\(.*\S\)\s*$/\1/' | sed 's/^\s*$//')
     line="$line,$item"
   done
-  # TODO: trim leading ,
+  line=$(echo "$line" | cut -c 2-)
+  header=$(echo "$header" | cut -c 2-)
   echo "$header"
   echo "$line"
 done
 echo "$header"
-# nova flavor-create
+# Database:
+#select flavorid,name,memory_mb,vcpus,swap,vcpu_weight,rxtx_factor,root_gb,ephemeral_gb,disabled,is_public from nova.instance_types where not deleted;
+# nova flavor-create --ephemeral <ephemeral_gb> --swap <swap> --rxtx-factor <rxtx_factor> --is_public <is_public> <name> <flavorid> <ram (memory_gb)> <disk (root_gb)> <vcpus>
 
 # Get SecGroups
 secgroups=$(nova secgroup-list --all-tenants 1 | egrep -v '[+]|Tenant_ID')
@@ -67,8 +73,10 @@ for id in $(echo "$secgroups" | awk -F\| '{ print $2 }'); do
     #echo "$rules"
   fi
 done
-# nova secgroup-create
-# nova secgroup-add-rule
+# Database: nova.security_groups, security_group_rules, security_group_instance_association, security_group_default_rules
+#select from nova.
+# nova secgroup-create <name> <description>
+# nova secgroup-add-rule <secgroup> <ip protocol> <from port> <to port> <cidr>
 
 # Get Users
 # Better pull from database - get more data
@@ -90,8 +98,13 @@ for user in $users; do
     fi 
   done
 done
-#keystone user-create
-#keystone user-role-add
+# Database: keystone.user, role, assignment
+#select name,password,enabled,domain_id,default_project_id from keystone.user;
+#select id,name from keystone.role;	# Role definitions
+#select actor_id,target_id,role_id,inherited from keystone.assignment where type='UserProject';
+#	actor=user, target=tenant
+#keystone user-create --name <user name> --tenant <tenant> --email <email> [--pass <password>]
+#keystone user-role-add --user <user> --role <role> --tenant <tenant>
 
 # Get keypairs
 # Better to pull from database
@@ -126,7 +139,9 @@ for F in $formats; do
   done
 done
 fi
-#glance image-create
+# Database: 
+#select id,name,size,is_public,disk_format,container_format,owner,min_disk,min_ram,protected from glance.images where not deleted;
+#glance image-create --name <name> --disk_format <disk_format> --container-format <container_format> --owner <owner (tenant id)> --min-disk <min_disk> --min-ram <min_ram> --is-public <is_public> --is-protected <protected> --file <image file>
 
 
 
