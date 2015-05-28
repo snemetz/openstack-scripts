@@ -1,0 +1,123 @@
+
+Nova block-device-mapping
+
+References:
+https://wiki.openstack.org/wiki/BlockDeviceConfig
+http://developer.openstack.org/api-ref-compute-v2.html
+http://developer.openstack.org/api-ref-compute-v2-ext.html
+http://docs.openstack.org/developer/python-novaclient/ref/v2/servers.html
+http://stackalytics.com/report/blueprint/nova/improve-block-device-handling
+
+Use: nova --debug ...
+to see the api POST sent
+
+nova --debug boot --flavor <> --image <> --key-name <> --ephemeral size=50,format=ext4 <instance name>
+
+SE: m3.medium (4G, 10G, 125G, 1)
+nova --debug boot --flavor m3.medium --image centos-6.5-expander --key-name snemetz --ephemeral size=50,format=ext4 steven-eph50
+{"guest_format": "ext4", "boot_index": -1, "volume_size": "50", "source_type": "blank", "destination_type": "local", "delete_on_termination": true}
+nova --debug boot --flavor m3.medium --image centos-6.5-expander --key-name snemetz --ephemeral size=150,format=ext4 steven-eph150
+{"guest_format": "ext4", "boot_index": -1, "volume_size": "150", "source_type": "blank", "destination_type": "local", "delete_on_termination": true}
+Error: Ephemeral disks requested are larger than the instance type allows
+Must be <= ephemeral in flavor
+Size is usable space, raw disk will be larger
+Specified ext4 but got ext3
+Specified ext5 - slower to build, got ext3
+Specified as auto (type) in /etc/fstab
+mount point /mnt
+
+nova --debug boot --flavor m3.medium --image centos-6.5-expander --key-name snemetz --ephemeral size=50,format=ext3 --ephemeral size=50,format=ext3 steven-eph102
+"block_device_mapping_v2": [{"source_type": "image", "delete_on_termination": true, "boot_index": 0, "uuid": "36ce673f-3e20-4c1a-94c3-e7dd035a75ba", "destination_type": "local"}, {"guest_format": "ext3", "boot_index": -1, "volume_size": "50", "source_type": "blank", "destination_type": "local", "delete_on_termination": true}, {"guest_format": "ext3", "boot_index": -1, "volume_size": "50", "source_type": "blank", "destination_type": "local", "delete_on_termination": true}], "min_count": 1}}'
+Can specify multiple ephemeral disks. It will format both, but only mount the first one
+Error: when specifiing 3 - Block Device Mapping is Invalid: You specified more local devices than the limit allows
+
+If format is not specified, it will still be formatted and mounted
+Default format is specified in nova.conf
+swap: size <= what is defined in flavor
+
+Can not get ephemeral disk? 
+size=0	Got the flavor size
+size=1	Get 1GB
+
+nova --debug boot --flavor m3.medium --image centos-6.5-expander --key-name snemetz --ephemeral size=50 --ephemeral size=50 steven-eph102a
+[root@steven-eph102a ~]# df -h
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda1       9.9G  916M  8.5G  10% /
+tmpfs           1.8G     0  1.8G   0% /dev/shm
+/dev/vdb         50G  180M   47G   1% /mnt
+/dev/vdc         50G  180M   47G   1% /disk/c
+[root@steven-eph102a ~]# blkid
+/dev/vda1: UUID="1f521e8f-d884-4b1f-a748-8c5a5d984906" TYPE="ext3"
+/dev/vdb: LABEL="ephemeral0" UUID="c1f11839-8dc5-40db-a29f-479062347c38" SEC_TYPE="ext2" TYPE="ext3"
+/dev/vdc: LABEL="ephemeral0" UUID="c1f11839-8dc5-40db-a29f-479062347c38" SEC_TYPE="ext2" TYPE="ext3"
+
+nova --debug boot --flavor m3.medium --image centos-6.5-expander --key-name snemetz --ephemeral size=25 --ephemeral size=50 steven-eph102
+[root@steven-eph102 ~]# df -h
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda1       9.9G  916M  8.5G  10% /
+tmpfs           1.8G     0  1.8G   0% /dev/shm
+/dev/vdb         25G  173M   24G   1% /mnt
+/dev/vdc         50G  180M   47G   1% /disk/c
+[root@steven-eph102 ~]# blkid
+/dev/vda1: UUID="1f521e8f-d884-4b1f-a748-8c5a5d984906" TYPE="ext3"
+/dev/vdb: LABEL="ephemeral0" UUID="5cc9810e-13ac-4c61-99fd-7bdbb31ea2b4" SEC_TYPE="ext2" TYPE="ext3"
+/dev/vdc: LABEL="ephemeral0" UUID="fc09dd33-dffe-49e2-a462-79c30390fac1" SEC_TYPE="ext2" TYPE="ext3"
+
+
+
+
+nova boot \
+  --block-device source=image,id=<image id>,dest=volume,size=10,bootindex=0 \
+  <instance name>
+
+--block-device-mapping <dev name>=<id>:<type>:<size (GB):<delete on teminate>
+
+  --block-device-mapping <dev-name=mapping>
+                                Block device mapping in the format <dev-
+                                name>=<id>:<type>:<size(GB)>:<delete-on-
+                                terminate>.
+  --block-device key1=value1[,key2=value2...]
+                                Block device mapping with the keys: id=UUID
+                                (image_id, snapshot_id or volume_id only if
+                                using source image, snapshot or volume)
+                                source=source type (image, snapshot, volume or
+                                blank), dest=destination type of the block
+                                device (volume or local), bus=device's bus
+                                (e.g. uml, lxc, virtio, ...; if omitted,
+                                hypervisor driver chooses a suitable default,
+                                honoured only if device type is supplied)
+                                type=device type (e.g. disk, cdrom, ...;
+                                defaults to 'disk') device=name of the device
+                                (e.g. vda, xda, ...; if omitted, hypervisor
+                                driver chooses suitable device depending on
+                                selected bus), size=size of the block device
+                                in GB (if omitted, hypervisor driver
+                                calculates size), format=device will be
+                                formatted (e.g. swap, ntfs, ...; optional),
+                                bootindex=integer used for ordering the boot
+                                disks (for image backed instances it is equal
+                                to 0, for others need to be specified) and
+                                shutdown=shutdown behaviour (either preserve
+                                or remove, for local destination set to
+                                remove).
+  --swap <swap_size>            Create and attach a local swap block device of
+                                <swap_size> MB.
+  --ephemeral size=<size>[,format=<format>]
+                                Create and attach a local ephemeral block
+                                device of <size> GB and format it to <format>.
+
+
+API
+/v2/<tenant id>/servers
+	block_device_mapping	Dict
+	block_device_mapping_v2	Dict
+	source_type		blank, snapshot, volume, image
+	destination_type	local, volume
+	guest_format		ephemeral, swap
+	boot_index		-1 (boot volume), 0 (attached volume)
+	device_name		Device in guest to attach to
+	delete_on_termination	0 (don't delete), 1 (delete)
+
+ephemeral: source_type=blank, destination_type=local, volume_size=50, guest_format=ext4, delete_on_terminate=true, boot_index=?
+
+	
