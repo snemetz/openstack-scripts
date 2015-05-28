@@ -1,0 +1,10 @@
+
+
+How to migrate OpenStack resources
+Article: https://dev.cloudwatt.com/en/blog/How-to-migrate-OpenStack-resources.html
+Script: https://github.com/cloudwatt/techblog/tree/master/2014-03-20-How-to-migrate-OpenStack-resources
+Script: https://github.com/cloudwatt/openstack-resources-snapshot
+
+Pumphouse - tool for forklift upgrade of OpenStack clouds.
+https://registry.hub.docker.com/u/xarses/pumphouse/
+
