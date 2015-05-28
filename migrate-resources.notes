@@ -1,10 +1,21 @@
 
-
+Migration
+=========
 How to migrate OpenStack resources
 Article: https://dev.cloudwatt.com/en/blog/How-to-migrate-OpenStack-resources.html
 Script: https://github.com/cloudwatt/techblog/tree/master/2014-03-20-How-to-migrate-OpenStack-resources
 Script: https://github.com/cloudwatt/openstack-resources-snapshot
 
+Upgrading
+=========
 Pumphouse - tool for forklift upgrade of OpenStack clouds.
 https://registry.hub.docker.com/u/xarses/pumphouse/
+
+Parallel Cloud Migration for Red Hat Enterprise Linux OpenStack Platform 6 (Juno)
+https://access.redhat.com/articles/1325533
+
+General Documentation
+=====================
+Red Hat Enterprise Linux OpenStack Platform Documentation
+https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux_OpenStack_Platform/
 
