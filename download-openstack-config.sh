@@ -49,7 +49,7 @@ for F in $flavors; do
 done
 echo "$header"
 # Database:
-#select flavorid,name,memory_mb,vcpus,swap,vcpu_weight,rxtx_factor,root_gb,ephemeral_gb,disabled,is_public from nova.instance_types where not deleted;
+#select flavorid,name,memory_mb,vcpus,swap,rxtx_factor,root_gb,ephemeral_gb,disabled,is_public from nova.instance_types where not deleted;
 # nova flavor-create --ephemeral <ephemeral_gb> --swap <swap> --rxtx-factor <rxtx_factor> --is_public <is_public> <name> <flavorid> <ram (memory_gb)> <disk (root_gb)> <vcpus>
 
 # Get SecGroups
@@ -74,7 +74,8 @@ for id in $(echo "$secgroups" | awk -F\| '{ print $2 }'); do
   fi
 done
 # Database: nova.security_groups, security_group_rules, security_group_instance_association, security_group_default_rules
-#select from nova.
+#select id,name,description,user_id,project_id from nova.security_groups where not deleted;
+#select id,parent_group_id,protocol,from_port,to_port,cidr from nova.security_group_rules where not deleted;
 # nova secgroup-create <name> <description>
 # nova secgroup-add-rule <secgroup> <ip protocol> <from port> <to port> <cidr>
 
