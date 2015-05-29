@@ -56,9 +56,14 @@ nova flavor-create --is_public True hw.perf 3 16384 12 8
 nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
 nova secgroup-add-rule default tcp 22 22 0.0.0.0/0
 # Do in each tenant
-nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
-nova secgroup-add-rule default tcp 1 65535 0.0.0.0/0
-nova secgroup-add-rule default udp 1 65535 0.0.0.0/0
+for Tenant in cloudbread hw-dev hw-qe hw-rel; do
+  tenant_old=$OS_TENANT_NAME
+  export OS_TENANT_NAME=$Tenant
+  nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
+  nova secgroup-add-rule default tcp 1 65535 0.0.0.0/0
+  nova secgroup-add-rule default udp 1 65535 0.0.0.0/0
+done
+export OS_TENANT_NAME=$tenant_old
 
 # Database: keystone.user, role, assignment
 #select name,password,extra,enabled,domain_id,default_project_id from keystone.user;
@@ -67,17 +72,17 @@ nova secgroup-add-rule default udp 1 65535 0.0.0.0/0
 #	actor=user, target=tenant
 # Create Users
 #keystone user-create --name <user name> --tenant <tenant> --email <email> [--pass <password>]
-keystone user-create --name cloudbreak --tenant cloudbreak --email techops@hortonworks.com
-keystone user-create --name hw-dev --tenant hw-dev --email techops@hortonworks.com
-keystone user-create --name hw-qe --tenant hw-qe --email techops@hortonworks.com
-keystone user-create --name hw-re --tenant hw-rel --email techops@hortonworks.com
-keystone user-create --name gcooper --tenant admin --email gcooper@hortonworks.com
-keystone user-create --name raja --tenant hw-rel --email raja@hortonworks.com
-keystone user-create --name sbriggs --tenant admin --email sbriggs@hortonworks.com
-keystone user-create --name sdean --tenant admin --email sdean@hortonworks.com
-keystone user-create --name sdevineni --tenant hw-rel --email sdevineni@hortonworks.com
-keystone user-create --name snemetz --tenant admin --email snemetz@hortonworks.com
-keystone user-create --name srastogi --tenant admin --email srastogi@hortonworks.com
+keystone user-create --name cloudbreak --tenant cloudbreak --email techops@hortonworks.com --pass 123
+keystone user-create --name hw-dev --tenant hw-dev --email techops@hortonworks.com --pass 123
+keystone user-create --name hw-qe --tenant hw-qe --email techops@hortonworks.com --pass 123
+keystone user-create --name hw-re --tenant hw-rel --email techops@hortonworks.com --pass 123
+keystone user-create --name gcooper --tenant admin --email gcooper@hortonworks.com --pass 123
+keystone user-create --name raja --tenant hw-rel --email raja@hortonworks.com --pass 123
+keystone user-create --name sbriggs --tenant admin --email sbriggs@hortonworks.com --pass 123
+keystone user-create --name sdean --tenant admin --email sdean@hortonworks.com --pass 123
+keystone user-create --name sdevineni --tenant hw-rel --email sdevineni@hortonworks.com --pass 123
+keystone user-create --name snemetz --tenant admin --email snemetz@hortonworks.com --pass 123
+keystone user-create --name srastogi --tenant admin --email srastogi@hortonworks.com --pass 123
 #keystone user-role-add --user <user> --role <role> --tenant <tenant>
 for User in gcooper snemetz srastogi; do
   keystone user-role-add --user $User --role admin --tenant cloudbreak
@@ -85,20 +90,49 @@ for User in gcooper snemetz srastogi; do
   keystone user-role-add --user $User --role admin --tenant hw-qe
   keystone user-role-add --user $User --role admin --tenant hw-re
 done
+# TODO: update database with password hashes from old database
 
-# Get keypairs
-# Better to pull from database
-#echo -e "\nKeypairs:"
-# this is per user
-#keypairs=$(nova keypair-list | egrep -v '[+]|Fingerprint' | awk '{ print $2 }')
-#for K in $keypairs; do
-#  nova keypair-show $K
-#done
 # Datbase
 # select name,user_id,public_key from nova.key_pairs where not deleted;
 # select id,name,extra,password,enabled,domain_id,default_project_id from keystone.user;
 # select * from keystone.user join (nova.key_pairs) on (keystone.user.id=nova.key_pairs.user_id) where not nova.key_pairs.deleted;
 #nova keypair-add <name> --pub-key <path to ssh public key file>
+user_old=$OS_USERNAME
+pass_old=$OS_PASSWORD
+export OS_PASSWORD=123
+export OS_USERNAME=admin
+nova keypair-add hw-dev-keypair --pub-key
+nova keypair-add hw-qe-keypair --pub-key
+nova keypair-add hwadmin --pub-key
+nova keypair-add hwqekeypair --pub-key
+export OS_PASSWORD=123
+export OS_USERNAME=hw-dev
+nova keypair-add hw-dev-keypair --pub-key
+export OS_USERNAME=hw-qe
+nova keypair-add hw-qe-keypair --pub-key
+nova keypair-add qekeypair --pub-key
+export OS_USERNAME=hw-re
+nova keypair-add hw-re-keypair --pub-key
+export OS_USERNAME=raja
+nova keypair-add raja --pub-key
+export OS_USERNAME=snemetz
+nova keypair-add snemetz --pub-key
+export OS_PASSWORD=$pass_old
+export OS_USERNAME=$user_old
+
+| name           | user_id                          | 
++----------------+----------------------------------+
+| hw-dev-keypair | admin 6d630ea61e864202b9726b6e695d57da |
+| hw-dev-keypair | hw-dev 575a0be8113d4109aff0f3c9aeed5cc7 |
+| hw-qe-keypair  | admin 6d630ea61e864202b9726b6e695d57da |
+| hw-qe-keypair  | hw-qe 1bbed270c3d84bcaac8e3b7dc9557392 |
+| hw-re-keypair  | hw-re 26f19a53a7ab444e9e2abcd2ae0de38a |
+| hwadmin        | admin 6d630ea61e864202b9726b6e695d57da |
+| hwqekeypair    | admin 6d630ea61e864202b9726b6e695d57da |
+| qekeypair      | hw-qe 1bbed270c3d84bcaac8e3b7dc9557392 |
+| raja           | raja 242b63df9845465db80d422105778084 |
+| snemetz        | snemetz b9f0c67b33e04732beec3bf40c6b8a9d |
+
 
 # Database: 
 #select id,name,size,is_public,disk_format,container_format,owner,min_disk,min_ram,protected from glance.images where not deleted;
