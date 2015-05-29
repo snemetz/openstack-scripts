@@ -20,29 +20,30 @@
 keystone tenant-create --name cloudbreak --description 'CloudBreak Project'
 keystone tenant-create --name hw-dev --description 'Dev Project'
 keystone tenant-create --name hw-qe --description 'QE Project'
-keystone tenant-create --name hw-rel --description 'Release Project'
+keystone tenant-create --name hw-re --description 'Release Project'
 
 # Database:
 #select flavorid,name,memory_mb,vcpus,swap,rxtx_factor,root_gb,ephemeral_gb,disabled,is_public from nova.instance_types where not deleted;
 # Create Flavors
 # nova flavor-create --ephemeral <ephemeral_gb> --swap <swap> --rxtx-factor <rxtx_factor> --is_public <is_public> <name> <flavorid> <ram (memory_gb)> <disk (root_gb)> <vcpus>
-nova flavor-create --is_public True m1.medium 3 4096 40 2
-nova flavor-create --is_public True m1.tiny 3 512 1 1
-nova flavor-create --is_public True m1.large 3 8192 80 4
-nova flavor-create --is_public True m1.xlarge 3 16384 160 8
-nova flavor-create --is_public True m1.small 3 2048 20 1
-nova flavor-create --is_public True m1.micro 3 64 0 64
-nova flavor-create --is_public True hwqe.xlarge.sles 3 16384 69 2
-nova flavor-create --is_public True hwqe.large 3 16384 16 2
-nova flavor-create --is_public True hwqe.xlarge 3 16384 16 2
-nova flavor-create --is_public True hwqe.large.sles 3 16384 69 2
-nova flavor-create --is_public True m1.smaller 3 1024 5 1
-nova flavor-create --is_public True re.jenkins.slave 3 16384 200 2
-nova flavor-create --is_public True solr.cloud 3 32768 500 4
-nova flavor-create --is_public True hwqe.slave 3 8024 100 4
-nova flavor-create --is_public True squid.cache 3 32768 100 4
-nova flavor-create --ephemeral 500 --is_public True cloudbreak 3 8192 40 2
-nova flavor-create --is_public True hw.perf 3 16384 12 8
+# Default flavors
+#nova flavor-create --is-public True m1.tiny 1 512 1 1
+#nova flavor-create --is-public True m1.small 2 2048 20 1
+#nova flavor-create --is-public True m1.medium 3 4096 40 2
+#nova flavor-create --is-public True m1.large 4 8192 80 4
+#nova flavor-create --is-public True m1.xlarge 5 16384 160 8
+nova flavor-create --is-public True m1.micro 6 64 0 64
+nova flavor-create --is-public True m1.smaller 7 1024 5 1
+nova flavor-create --is-public True hwqe.large 100 16384 16 2
+nova flavor-create --is-public True hwqe.xlarge 101 16384 16 2
+nova flavor-create --is-public True hwqe.large.sles 102 16384 69 2
+nova flavor-create --is-public True hwqe.xlarge.sles 103 16384 69 2
+nova flavor-create --is-public True hwqe.slave 104 8024 100 4
+nova flavor-create --is-public True hw.perf 130 16384 12 8
+nova flavor-create --is-public True re.jenkins.slave 200 16384 200 2
+nova flavor-create --is-public True solr.cloud 201 32768 500 4
+nova flavor-create --is-public True squid.cache 202 32768 100 4
+nova flavor-create --ephemeral 500 --is-public True cloudbreak 203 8192 40 2
 
 # Database: nova.security_groups, security_group_rules, security_group_instance_association, security_group_default_rules
 #select id,name,description,user_id,project_id from nova.security_groups where not deleted;
@@ -56,14 +57,17 @@ nova flavor-create --is_public True hw.perf 3 16384 12 8
 nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
 nova secgroup-add-rule default tcp 22 22 0.0.0.0/0
 # Do in each tenant
-for Tenant in cloudbread hw-dev hw-qe hw-rel; do
-  tenant_old=$OS_TENANT_NAME
+tenant_old=$OS_TENANT_NAME
+tenant_id_old=$OS_TENANT_ID
+export OS_TENANT_ID=
+for Tenant in cloudbreak hw-dev hw-qe hw-re; do
   export OS_TENANT_NAME=$Tenant
   nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
   nova secgroup-add-rule default tcp 1 65535 0.0.0.0/0
   nova secgroup-add-rule default udp 1 65535 0.0.0.0/0
 done
 export OS_TENANT_NAME=$tenant_old
+export OS_TENANT_ID=$tenant_id_old
 
 # Database: keystone.user, role, assignment
 #select name,password,extra,enabled,domain_id,default_project_id from keystone.user;
@@ -75,20 +79,25 @@ export OS_TENANT_NAME=$tenant_old
 keystone user-create --name cloudbreak --tenant cloudbreak --email techops@hortonworks.com --pass 123
 keystone user-create --name hw-dev --tenant hw-dev --email techops@hortonworks.com --pass 123
 keystone user-create --name hw-qe --tenant hw-qe --email techops@hortonworks.com --pass 123
-keystone user-create --name hw-re --tenant hw-rel --email techops@hortonworks.com --pass 123
-keystone user-create --name gcooper --tenant admin --email gcooper@hortonworks.com --pass 123
-keystone user-create --name raja --tenant hw-rel --email raja@hortonworks.com --pass 123
+keystone user-create --name hw-re --tenant hw-re --email techops@hortonworks.com --pass 123
+#keystone user-create --name gcooper --tenant admin --email gcooper@hortonworks.com --pass 123
+keystone user-create --name raja --tenant hw-re --email raja@hortonworks.com --pass 123
 keystone user-create --name sbriggs --tenant admin --email sbriggs@hortonworks.com --pass 123
 keystone user-create --name sdean --tenant admin --email sdean@hortonworks.com --pass 123
-keystone user-create --name sdevineni --tenant hw-rel --email sdevineni@hortonworks.com --pass 123
+keystone user-create --name sdevineni --tenant hw-re --email sdevineni@hortonworks.com --pass 123
 keystone user-create --name snemetz --tenant admin --email snemetz@hortonworks.com --pass 123
 keystone user-create --name srastogi --tenant admin --email srastogi@hortonworks.com --pass 123
 #keystone user-role-add --user <user> --role <role> --tenant <tenant>
 for User in gcooper snemetz srastogi; do
+  keystone user-role-add --user $User --role admin --tenant admin
   keystone user-role-add --user $User --role admin --tenant cloudbreak
-  keystone user-role-add --user $User --role admin --tenant hw-dev
-  keystone user-role-add --user $User --role admin --tenant hw-qe
-  keystone user-role-add --user $User --role admin --tenant hw-re
+  keystone user-role-add --user $User --role admin --tenant 'hw-dev'
+  keystone user-role-add --user $User --role admin --tenant 'hw-qe'
+  keystone user-role-add --user $User --role admin --tenant 'hw-re'
+  keystone user-role-add --user $User --role _member_ --tenant cloudbreak
+  keystone user-role-add --user $User --role _member_ --tenant 'hw-dev'
+  keystone user-role-add --user $User --role _member_ --tenant 'hw-qe'
+  keystone user-role-add --user $User --role _member_ --tenant 'hw-re'
 done
 # TODO: update database with password hashes from old database
 
@@ -99,26 +108,37 @@ done
 #nova keypair-add <name> --pub-key <path to ssh public key file>
 user_old=$OS_USERNAME
 pass_old=$OS_PASSWORD
+tenant_old=$OS_TENANT_NAME
+tenant_id_old=$OS_TENANT_ID
+export OS_TENANT_ID=
+# Didn't do admin ones
 export OS_PASSWORD=123
 export OS_USERNAME=admin
-nova keypair-add hw-dev-keypair --pub-key
-nova keypair-add hw-qe-keypair --pub-key
-nova keypair-add hwadmin --pub-key
-nova keypair-add hwqekeypair --pub-key
+nova keypair-add hw-dev-keypair --pub-key hw-dev-keypair
+nova keypair-add hw-qe-keypair --pub-key hw-qe-keypair
+nova keypair-add hwadmin --pub-key hwadmin
+nova keypair-add hwqekeypair --pub-key hwqekeypair
 export OS_PASSWORD=123
 export OS_USERNAME=hw-dev
-nova keypair-add hw-dev-keypair --pub-key
+export OS_TENANT_NAME=hw-dev
+nova keypair-add hw-dev-keypair --pub-key hw-dev-keypair
 export OS_USERNAME=hw-qe
-nova keypair-add hw-qe-keypair --pub-key
-nova keypair-add qekeypair --pub-key
+export OS_TENANT_NAME=hw-qe
+nova keypair-add hw-qe-keypair --pub-key hw-dev-keypair
+nova keypair-add qekeypair --pub-key qekeypair
 export OS_USERNAME=hw-re
-nova keypair-add hw-re-keypair --pub-key
+export OS_TENANT_NAME=hw-re
+nova keypair-add hw-re-keypair --pub-key hw-re-keypair
 export OS_USERNAME=raja
-nova keypair-add raja --pub-key
+nova keypair-add raja --pub-key raja
 export OS_USERNAME=snemetz
-nova keypair-add snemetz --pub-key
+export OS_TENANT_NAME=admin
+nova keypair-add snemetz --pub-key snemetz
+# reset vars
 export OS_PASSWORD=$pass_old
 export OS_USERNAME=$user_old
+export OS_TENANT_NAME=$tenant_old
+export OS_TENANT_ID=$tenant_id_old
 
 | name           | user_id                          | 
 +----------------+----------------------------------+
