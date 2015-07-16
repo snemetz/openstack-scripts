@@ -5,7 +5,7 @@
 # Author: Steven Nemetz
 # snemetz@hotmail.com
 
-email_domain='hortonworks.com'
+email_domain='company.com'
 openstack_env='/root/keystonerc_admin'
 dir_pub_keys='/opt'
 quota_cores=40
@@ -16,9 +16,6 @@ quota_ram=$(( quota_cores * 3840 ))
 tenant_name=$1
 user_name=$2
 user_password=$3
-
-#secloud_tenant=89042cdec81c43d39df4a244b4a487c9
-#pscloud_tenant=eebcecb02093429b8ba35e6a31f8de84
 
 if [ $# -ne 3 ]; then
   echo "Usage: $0 Tenant User_Name User_Password"
@@ -55,7 +52,7 @@ fi
 
 echo -e "\n"
 echo "Account created in OpenStack tenant: ${tenant_name}"
-echo "You can access the environment at http://openstack.cloud.hortonworks.com"
+echo "You can access the environment at http://openstack.company.com"
 echo "Username: ${user_name}"
 echo "Password: ${user_password}"
 echo "EMail: ${user_email}"
