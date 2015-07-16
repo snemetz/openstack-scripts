@@ -1,6 +1,6 @@
 heat_template_version: 2013-05-23
 
-description: Launch groups of VMs with a specific HWX naming convention.
+description: Launch groups of VMs with a specific naming convention.
 
 parameters:
   key_name:
@@ -48,7 +48,7 @@ resources:
           flavor: { get_param: instance_flavor }
           image: { get_param: instance_image }
           key_name: { get_param: key_name }
-          name: { "Fn::Join" : [ "-", [ { get_param: "OS::stack_name" }, "HWX%(slave-num)" ]] }
+          name: { "Fn::Join" : [ "-", [ { get_param: "OS::stack_name" }, "HOST%(slave-num)" ]] }
           networks:
             - network: { get_param: network }
 
