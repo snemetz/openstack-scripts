@@ -9,8 +9,6 @@
 
 openstack_env='/root/keystonerc_admin'
 
-tenant='89042cdec81c43d39df4a244b4a487c9' # secloud
-
 tenant_name=$1
 user_name=$2
 
