@@ -2,9 +2,9 @@
 
 # Setup OpenStack authentication environment
 
-export OS_AUTH_URL=http://172.22.64.1:5000/v2.0
+export OS_AUTH_URL=http://<IP>:5000/v2.0
 
-export OS_TENANT_ID=b9b002a5232c4f5c8d68af96c68338ca
+export OS_TENANT_ID=<UUID>
 export OS_TENANT_NAME="admin"
 
 export OS_USERNAME="snemetz"
